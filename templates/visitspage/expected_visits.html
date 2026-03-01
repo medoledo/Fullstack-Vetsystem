@@ -1,0 +1,301 @@
+{% extends 'base.html' %}
+{% block title %}Expected Visits{% endblock %}
+{% block page_title %}Expected Visits{% endblock %}
+
+{% block content %}
+<style>
+    .whatsapp-btn {
+        background-color: #25D366;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 5px 14px;
+        font-weight: 600;
+        font-size: .82rem;
+        transition: background .15s;
+    }
+
+    .whatsapp-btn:hover {
+        background-color: #1ebe5d;
+        color: white;
+    }
+
+    .table-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, .05);
+        overflow: hidden;
+        margin-bottom: 24px;
+    }
+
+    .table-card-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .table-card-header .tc-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 9px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: .95rem;
+    }
+
+    .table-card-header h5 {
+        margin: 0;
+        font-weight: 700;
+        color: #1e293b;
+        font-size: .95rem;
+    }
+
+    .table-card-header .count-badge {
+        margin-left: auto;
+        font-size: .75rem;
+        font-weight: 700;
+        padding: 3px 12px;
+        border-radius: 50px;
+    }
+
+    .pet-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: #f1f5f9;
+        border-radius: 6px;
+        padding: 3px 10px;
+        font-size: .8rem;
+        color: #334155;
+    }
+
+    .phone-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: #f1f5f9;
+        border-radius: 6px;
+        padding: 3px 10px;
+        font-size: .82rem;
+        color: #334155;
+        font-family: monospace;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #94a3b8;
+    }
+
+    tr.wa-sent-row {
+        background-color: #f0fdf4 !important;
+        border-left: 4px solid #22c55e;
+    }
+
+    .wa-sent-badge {
+        display: inline-block;
+        font-size: .68rem;
+        background: #22c55e;
+        color: #fff;
+        border-radius: 20px;
+        padding: 1px 8px;
+        font-weight: 600;
+        white-space: nowrap;
+        vertical-align: middle;
+        margin-left: 6px;
+    }
+</style>
+
+<div class="page-header mb-4 flex-wrap gap-2">
+    <h2 class="mb-1 fw-bold">Expected Visits Board</h2>
+    <p class="text-muted">Track and remind owners of upcoming visits for today and tomorrow.</p>
+</div>
+
+<!-- Today's Visits -->
+<div class="table-card">
+    <div class="table-card-header" style="background: linear-gradient(90deg, #fffbeb, #fff);">
+        <div class="tc-icon" style="background:#fef3c7; color:#d97706;"><i class="fa-solid fa-calendar-day"></i></div>
+        <h5 style="color:#92400e">Today's Expected Visits</h5>
+        <span class="count-badge {% if today_visits %}bg-warning text-dark{% else %}bg-light text-muted{% endif %}">
+            {{ today_visits|length }} appointment{{ today_visits|length|pluralize }}
+        </span>
+    </div>
+    {% if today_visits %}
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" id="today-table">
+            <thead class="table-light">
+                <tr>
+                    <th>Owner</th>
+                    <th>Phone</th>
+                    <th>Pet</th>
+                    <th>Last Visit</th>
+                    <th>History</th>
+                    <th class="text-end">Remind</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in today_visits %}
+                <tr data-wa-key="today-{{ v.pet.id }}">
+                    <td>
+                        <a href="{% url 'owner_detail' v.pet.owner.id %}"
+                            class="fw-bold text-decoration-none text-dark">
+                            {{ v.pet.owner.name }}
+                        </a>
+                    </td>
+                    <td><span class="phone-chip"><i class="fa-solid fa-phone text-muted" style="font-size:.7rem"></i>{{ v.pet.owner.phone_number }}</span></td>
+                    <td><span class="pet-chip"><i class="fa-solid fa-paw text-muted" style="font-size:.7rem"></i>{{ v.pet.name }}</span></td>
+                    <td>
+                        <span class="badge bg-light text-dark border">
+                            <i class="fa-solid fa-calendar-check text-muted me-1"></i>
+                            {{ v.visit_date|date:"Y-m-d" }}
+                        </span>
+                    </td>
+                    <td>
+                        <a href="{% url 'pet_visits' v.pet.id %}" class="btn btn-sm btn-outline-info py-0">
+                            <i class="fa-solid fa-clock-rotate-left"></i> History
+                        </a>
+                    </td>
+                    <td class="text-end">
+                        <a href="https://web.whatsapp.com/send?phone={{ v.pet.owner.phone_number }}&text={{ v.whatsapp_msg }}"
+                            target="_blank" class="btn btn-sm whatsapp-btn wa-send-btn"
+                            data-wa-key="today-{{ v.pet.id }}">
+                            <i class="fa-brands fa-whatsapp"></i> WhatsApp
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fa-solid fa-circle-check fs-2 text-success mb-2"></i>
+        <p class="mb-0 fw-semibold">All clear for today!</p>
+        <p class="small text-muted">No visits expected today.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Tomorrow's Visits -->
+<div class="table-card">
+    <div class="table-card-header" style="background: linear-gradient(90deg, #eff6ff, #fff);">
+        <div class="tc-icon" style="background:#dbeafe; color:#2563eb;"><i class="fa-solid fa-calendar-plus"></i></div>
+        <h5 style="color:#1e3a5f">Tomorrow's Expected Visits</h5>
+        <span class="count-badge {% if tomorrow_visits %}bg-primary text-white{% else %}bg-light text-muted{% endif %}">
+            {{ tomorrow_visits|length }} appointment{{ tomorrow_visits|length|pluralize }}
+        </span>
+    </div>
+    {% if tomorrow_visits %}
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0" id="tomorrow-table">
+            <thead class="table-light">
+                <tr>
+                    <th>Owner</th>
+                    <th>Phone</th>
+                    <th>Pet</th>
+                    <th>Last Visit</th>
+                    <th>History</th>
+                    <th class="text-end">Remind</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in tomorrow_visits %}
+                <tr data-wa-key="tomorrow-{{ v.pet.id }}">
+                    <td>
+                        <a href="{% url 'owner_detail' v.pet.owner.id %}"
+                            class="fw-bold text-decoration-none text-dark">
+                            {{ v.pet.owner.name }}
+                        </a>
+                    </td>
+                    <td><span class="phone-chip"><i class="fa-solid fa-phone text-muted" style="font-size:.7rem"></i>{{ v.pet.owner.phone_number }}</span></td>
+                    <td><span class="pet-chip"><i class="fa-solid fa-paw text-muted" style="font-size:.7rem"></i>{{ v.pet.name }}</span></td>
+                    <td>
+                        <span class="badge bg-light text-dark border">
+                            <i class="fa-solid fa-calendar-check text-muted me-1"></i>
+                            {{ v.visit_date|date:"Y-m-d" }}
+                        </span>
+                    </td>
+                    <td>
+                        <a href="{% url 'pet_visits' v.pet.id %}" class="btn btn-sm btn-outline-info py-0">
+                            <i class="fa-solid fa-clock-rotate-left"></i> History
+                        </a>
+                    </td>
+                    <td class="text-end">
+                        <a href="https://web.whatsapp.com/send?phone={{ v.pet.owner.phone_number }}&text={{ v.whatsapp_msg }}"
+                            target="_blank" class="btn btn-sm whatsapp-btn wa-send-btn"
+                            data-wa-key="tomorrow-{{ v.pet.id }}">
+                            <i class="fa-brands fa-whatsapp"></i> WhatsApp
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fa-solid fa-mug-hot fs-2 mb-2 text-muted"></i>
+        <p class="mb-0 fw-semibold">Nothing scheduled tomorrow yet.</p>
+        <p class="small text-muted">Enjoy a calm day ahead!</p>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    (function () {
+        const STORAGE_KEY = 'wa_last_sent_key';
+
+        // Restore highlight on page load
+        function restoreHighlight() {
+            const lastKey = localStorage.getItem(STORAGE_KEY);
+            if (!lastKey) return;
+
+            const row = document.querySelector(`tr[data-wa-key="${lastKey}"]`);
+            if (!row) return;
+
+            markRow(row, lastKey);
+
+            // Scroll to the row smoothly so user can see where they stopped
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function markRow(row, key) {
+            // Clear any previously highlighted row first
+            document.querySelectorAll('tr.wa-sent-row').forEach(r => {
+                r.classList.remove('wa-sent-row');
+                const badge = r.querySelector('.wa-sent-badge');
+                if (badge) badge.remove();
+            });
+
+            row.classList.add('wa-sent-row');
+
+            // Add "Last sent ✓" badge next to the owner name
+            const ownerCell = row.querySelector('td:first-child');
+            if (ownerCell && !ownerCell.querySelector('.wa-sent-badge')) {
+                const badge = document.createElement('span');
+                badge.className = 'wa-sent-badge';
+                badge.innerHTML = '&#10003; Last sent';
+                ownerCell.appendChild(badge);
+            }
+        }
+
+        // Attach click handlers to all WhatsApp buttons
+        document.querySelectorAll('.wa-send-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const key = this.getAttribute('data-wa-key');
+                localStorage.setItem(STORAGE_KEY, key);
+
+                const row = document.querySelector(`tr[data-wa-key="${key}"]`);
+                if (row) markRow(row, key);
+            });
+        });
+
+        restoreHighlight();
+    })();
+</script>
+
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<h1>Add Pet Type</h1>
+<form method="POST">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-success">Save Pet Type</button>
+</form>
+<a href="{% url 'owners' %}" class="btn btn-secondary">Back to Owners List</a>
+
+<style>
+    /* Button Styling */
+    .btn {
+        padding: 8px 16px;
+        text-decoration: none;
+        color: white;
+        border-radius: 5px;
+        font-weight: bold;
+    }
+
+    .btn-success {
+        background-color: #28a745;
+        border: none;
+    }
+
+    .btn-secondary {
+        background-color: #6c757d;
+        border: none;
+    }
+
+    .btn:hover {
+        opacity: 0.8;
+    }
+</style>
+
+{% endblock %}

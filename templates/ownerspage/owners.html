@@ -1,0 +1,430 @@
+{% extends 'base.html' %}
+{% block title %}Owners{% endblock %}
+{% load role_tags %}
+{% block page_title %}Owners & Pets{% endblock %}
+
+{% block content %}
+<style>
+    .filter-bar {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 16px 20px;
+        margin-bottom: 20px;
+    }
+
+    .stat-row {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+    }
+
+    .stat-pill-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 12px 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: .85rem;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
+    }
+
+    .stat-pill-card .sp-icon {
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: .9rem;
+    }
+
+    .stat-pill-card .sp-val {
+        font-size: 1.3rem;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .stat-pill-card .sp-lbl {
+        font-size: .72rem;
+        color: #64748b;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+
+    .owner-avatar {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #1d4ed8, #10b981);
+        color: white;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: .85rem;
+        flex-shrink: 0;
+    }
+
+    .badge-pets {
+        background: #eff6ff;
+        color: #2563eb;
+        font-size: .72rem;
+        padding: 2px 8px;
+        border-radius: 50px;
+        font-weight: 600;
+    }
+
+    .phone-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: #f1f5f9;
+        border-radius: 6px;
+        padding: 3px 10px;
+        font-size: .82rem;
+        color: #334155;
+        font-family: monospace;
+    }
+
+    @media (max-width: 767.98px) {
+        .filter-bar {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 10px !important;
+            padding: 14px;
+        }
+
+        .filter-bar>div {
+            width: 100% !important;
+        }
+
+        .filter-bar .btn {
+            width: 100%;
+        }
+
+        .stat-row {
+            gap: 10px;
+        }
+
+        .stat-pill-card {
+            flex: 1;
+            min-width: 140px;
+        }
+    }
+</style>
+
+<div class="page-header">
+    <div>
+        <h2>Owners & Pets</h2>
+        <p>Manage client records and their animals</p>
+    </div>
+    <div class="d-flex gap-2">
+        {% if request.user|is_admin %}
+        <a href="{% url 'pet_types' %}" class="btn btn-sm btn-outline-info">
+            <i class="fa-solid fa-paw"></i> Pet Types
+        </a>
+        {% endif %}
+        <a href="{% url 'download_owners' %}" class="btn btn-sm btn-outline-secondary">
+            <i class="fa-solid fa-download"></i> Export
+        </a>
+        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addOwnerModal">
+            <i class="fa-solid fa-plus me-1"></i> Add Owner
+        </button>
+    </div>
+</div>
+
+<!-- Stat summary row -->
+<div class="stat-row">
+    <div class="stat-pill-card">
+        <div class="sp-icon ic-blue"><i class="fa-solid fa-users"></i></div>
+        <div>
+            <div class="sp-val">{{ page_obj.paginator.count }}</div>
+            <div class="sp-lbl">{% if search_query %}Matching{% else %}Total{% endif %} Owners</div>
+        </div>
+    </div>
+</div>
+
+<form method="get" class="filter-bar d-flex gap-3 align-items-end">
+    <div style="flex:1">
+        <label class="form-label text-muted small fw-bold">SEARCH OWNERS</label>
+        <div class="input-group">
+            <span class="input-group-text bg-light border-end-0 text-muted"><i
+                    class="fa-solid fa-magnifying-glass"></i></span>
+            <input type="text" name="search" id="searchInput" value="{{ search_query }}"
+                class="form-control border-start-0 ps-0" placeholder="Search by name or phone number..."
+                autocomplete="off">
+            {% if search_query %}
+            <a href="{% url 'owners' %}" class="btn btn-outline-secondary border-start-0" title="Clear search">
+                <i class="fa-solid fa-xmark"></i>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    <button type="submit" class="btn btn-primary px-4">Search</button>
+</form>
+
+<!-- Table -->
+<div class="card">
+    <div class="table-responsive" style="overflow: visible;">
+        <table class="table mb-0">
+            <thead>
+                <tr>
+                    <th style="width:42px">#</th>
+                    <th>Owner</th>
+                    <th>Phone</th>
+                    <th>Joined</th>
+                    <th>Pets</th>
+                    <th style="width:60px" class="text-end pe-4">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for owner in owners %}
+                <tr>
+                    <td class="text-muted small">{{ forloop.counter }}</td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="owner-avatar">{{ owner.name|slice:":1"|upper }}</div>
+                            <a href="{% url 'owner_detail' owner.id %}" class="fw-600 text-decoration-none text-dark">
+                                {{ owner.name }}
+                            </a>
+                        </div>
+                    </td>
+                    <td><span class="phone-chip"><i class="fa-solid fa-phone text-muted" style="font-size:.7rem"></i>{{ owner.phone_number }}</span></td>
+                    <td class="text-muted small">{{ owner.joined_date|date:"N j, Y" }}</td>
+                    <td>
+                        <span class="badge-pets"><i class="fa-solid fa-paw me-1"></i>{{ owner.pets.count }}</span>
+                    </td>
+                    <td class="text-end pe-4">
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-link text-muted" type="button" data-bs-toggle="dropdown"
+                                aria-expanded="False">
+                                <i class="fa-solid fa-ellipsis-vertical fs-5"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'owner_detail' owner.id %}"><i
+                                            class="fa-solid fa-eye me-2 text-primary"></i> View Details</a>
+                                </li>
+                                <li>
+                                    <button type="button" class="dropdown-item edit-owner-btn" data-bs-toggle="modal"
+                                        data-bs-target="#editOwnerModal" data-ownerid="{{ owner.id }}"
+                                        data-name="{{ owner.name }}" data-phone="{{ owner.phone_number }}"
+                                        data-address="{{ owner.address }}">
+                                        <i class="fa-solid fa-pen-to-square me-2 text-warning"></i> Edit Owner
+                                    </button>
+                                </li>
+                                {% if request.user|is_admin %}
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
+                                <li>
+                                    <button class="dropdown-item text-danger"
+                                        onclick="confirmDelete('{% url 'delete_owner' owner.id %}', '{{ owner.name|escapejs }}')">
+                                        <i class="fa-solid fa-trash me-2"></i> Delete Owner
+                                    </button>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">No owners found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.paginator.count > 0 %}
+    <div
+        class="card-footer bg-white border-top py-3 d-flex flex-column flex-sm-row justify-content-between align-items-center gap-3">
+        <div class="d-flex align-items-center gap-3">
+            <span class="text-muted small">
+                Showing <strong>{{ page_obj.start_index }}</strong> to <strong>{{ page_obj.end_index }}</strong> of
+                <strong>{{ page_obj.paginator.count }}</strong> owners
+            </span>
+            <form id="pageSizeForm" method="get" class="d-flex align-items-center gap-2 m-0 border-start ps-3">
+                {% if search_query %}
+                <input type="hidden" name="search" value="{{ search_query }}">
+                {% endif %}
+                <label class="text-muted small mb-0">Per page:</label>
+                <select name="limit" id="limitSelect" class="form-select form-select-sm" style="width: 70px;"
+                    data-current="{{ limit }}" onchange="document.getElementById('pageSizeForm').submit();">
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+            </form>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <ul class="pagination pagination-sm mb-0">
+            {% if page_obj.has_previous %}
+            <li class="page-item"><a class="page-link"
+                    href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if limit %}&limit={{ limit }}{% endif %}">Prev</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">Prev</span></li>
+            {% endif %}
+
+            {% for i in page_obj.paginator.page_range %}
+            {% if page_obj.number == i %}
+            <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+            {% elif i > page_obj.number|add:'-3' and i < page_obj.number|add:'3' %} <li class="page-item"><a
+                    class="page-link"
+                    href="?page={{ i }}{% if search_query %}&search={{ search_query }}{% endif %}{% if limit %}&limit={{ limit }}{% endif %}">{{ i }}</a></li>
+                {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link"
+                        href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if limit %}&limit={{ limit }}{% endif %}">Next</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link">Next</span></li>
+                {% endif %}
+        </ul>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<!-- Add Owner Modal -->
+<div class="modal fade" id="addOwnerModal" tabindex="-1" aria-labelledby="addOwnerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title fw-bold" id="addOwnerModalLabel">Add New Owner</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form method="post" action="{% url 'add_owner' %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">OWNER DETAILS</label>
+                        <input type="text" name="name" class="form-control mb-3" placeholder="Full Name" required>
+                        <div class="input-group mb-3">
+                            <span class="input-group-text"><i class="fa-solid fa-phone"></i></span>
+                            <input type="text" name="phone_number" class="form-control" placeholder="Primary Phone"
+                                required>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fa-solid fa-location-dot"></i></span>
+                            <textarea name="address" class="form-control" rows="2"
+                                placeholder="Full Address"></textarea>
+                        </div>
+                    </div>
+                    <div class="d-grid mt-2">
+                        <button type="submit" class="btn btn-primary py-2 fw-medium">Save Owner</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Owner Modal -->
+<div class="modal fade" id="editOwnerModal" tabindex="-1" aria-labelledby="editOwnerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title fw-bold" id="editOwnerModalLabel">Edit Owner Profile</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form method="post" id="editOwnerForm" action="">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">OWNER DETAILS</label>
+                        <input type="text" name="name" class="form-control mb-3" placeholder="Full Name" required>
+                        <div class="input-group mb-3">
+                            <span class="input-group-text"><i class="fa-solid fa-phone"></i></span>
+                            <input type="text" name="phone_number" class="form-control" placeholder="Primary Phone"
+                                required>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fa-solid fa-location-dot"></i></span>
+                            <textarea name="address" class="form-control" rows="2"
+                                placeholder="Full Address"></textarea>
+                        </div>
+                    </div>
+                    <div class="d-grid mt-2">
+                        <button type="submit" class="btn btn-warning py-2 fw-medium">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete confirmation modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-body text-center p-4">
+                <i class="fa-solid fa-triangle-exclamation text-warning" style="font-size:2rem;"></i>
+                <p class="mt-3 mb-1 fw-bold" id="deleteModalMsg">Delete owner?</p>
+                <p class="text-muted small">This will also delete their pets and visits.</p>
+                <div class="d-flex gap-2 justify-content-center mt-3">
+                    <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <form id="deleteForm" method="post">{% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-danger">Yes, Delete</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function confirmDelete(url, name) {
+        document.getElementById('deleteForm').action = url;
+        document.getElementById('deleteModalMsg').textContent = `Delete "${name}"?`;
+        new bootstrap.Modal(document.getElementById('deleteModal')).show();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Restore the selected "per page" option
+        const limitSelect = document.getElementById('limitSelect');
+        if (limitSelect) {
+            const current = limitSelect.getAttribute('data-current');
+            if (current) {
+                const opt = limitSelect.querySelector(`option[value="${current}"]`);
+                if (opt) opt.selected = true;
+            }
+        }
+
+        const editButtons = document.querySelectorAll('.edit-owner-btn');
+        const editForm = document.getElementById('editOwnerForm');
+
+        const baseUrlTemplate = "{% url 'edit_owner' 0 %}";
+
+        editButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const ownerId = btn.getAttribute('data-ownerid');
+                const name = btn.getAttribute('data-name');
+                const phone = btn.getAttribute('data-phone');
+                const address = btn.getAttribute('data-address');
+
+                editForm.action = baseUrlTemplate.replace('0', ownerId);
+
+                editForm.querySelector('input[name="name"]').value = name || '';
+                editForm.querySelector('input[name="phone_number"]').value = phone || '';
+                editForm.querySelector('textarea[name="address"]').value = address || '';
+            });
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,11 @@
+<!-- owners/confirm_delete.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>Are you sure you want to delete {{ owner.name }}?</h1>
+    <form method="POST">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Yes, delete</button>
+    </form>
+    <a href="{% url 'owners' %}" class="btn btn-secondary">Cancel</a>
+{% endblock %}

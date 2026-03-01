@@ -1,0 +1,992 @@
+﻿{% extends 'base.html' %}
+{% load role_tags %}
+{% block title %}Boarding Management{% endblock %}
+{% block page_title %}Boarding{% endblock %}
+
+{% block content %}
+<style>
+    .stat-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+    }
+
+    .stat-icon.blue {
+        background: #eff6ff;
+        color: #3b82f6;
+    }
+
+    .stat-icon.green {
+        background: #f0fdf4;
+        color: #22c55e;
+    }
+
+    .stat-icon.purple {
+        background: #faf5ff;
+        color: #a855f7;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1;
+        margin-bottom: 4px;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+        color: #64748b;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+
+    .board-card {
+        background: #fff;
+        border: 2px solid #3b82f6;
+        border-radius: 12px;
+        padding: 15px;
+    }
+
+    .cage-badge {
+        white-space: nowrap;
+        background: #f8fafc;
+        color: #475569;
+        border: 1px solid #cbd5e1;
+        padding: 4px 12px;
+        border-radius: 50px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .cage-toggle-pill input[type="checkbox"] {
+        display: none;
+    }
+
+    .cage-toggle-pill span {
+        display: inline-flex;
+        align-items: center;
+        cursor: pointer;
+        padding: 6px 14px;
+        border-radius: 50px;
+        border: 1.5px solid #cbd5e1;
+        background: #f8fafc;
+        color: #475569;
+        font-size: 0.8rem;
+        font-weight: 600;
+        transition: all 0.15s ease;
+        user-select: none;
+    }
+
+    .cage-toggle-pill input[type="checkbox"]:checked+span {
+        background: #0f172a;
+        border-color: #0f172a;
+        color: #fff;
+    }
+
+    .cage-toggle-pill:hover span {
+        border-color: #64748b;
+        background: #f1f5f9;
+    }
+
+    .cage-toggle-pill input[type="checkbox"]:checked+span:hover {
+        background: #1e293b;
+        border-color: #1e293b;
+    }
+
+    .phone-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: #f1f5f9;
+        border-radius: 6px;
+        padding: 3px 10px;
+        font-size: .82rem;
+        color: #334155;
+        font-family: monospace;
+    }
+</style>
+
+<!-- Stats (Pill Design) -->
+<div class="d-flex flex-wrap gap-3 mb-4">
+    <div class="bg-white border rounded-pill d-inline-flex align-items-center px-3 py-2 shadow-sm">
+        <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center me-2"
+            style="width: 32px; height: 32px;">
+            <i class="fa-solid fa-paw small"></i>
+        </div>
+        <span class="fw-bold fs-5 me-2 text-dark" style="line-height: 1;">{{ active_boardings.count }}</span>
+        <span class="text-muted fw-semibold text-uppercase pe-2"
+            style="letter-spacing: 0.5px; font-size: 0.70rem;">Active Boarders</span>
+    </div>
+
+    <div class="bg-white border rounded-pill d-inline-flex align-items-center px-3 py-2 shadow-sm">
+        <div class="bg-success bg-opacity-10 text-success rounded-circle d-flex align-items-center justify-content-center me-2"
+            style="width: 32px; height: 32px;">
+            <i class="fa-solid fa-box-open small"></i>
+        </div>
+        <span class="fw-bold fs-5 me-2 text-dark" style="line-height: 1;">{{ cages.count }}</span>
+        <span class="text-muted fw-semibold text-uppercase pe-2"
+            style="letter-spacing: 0.5px; font-size: 0.70rem;">Total Cages</span>
+    </div>
+
+    <div class="bg-white border rounded-pill d-inline-flex align-items-center px-3 py-2 shadow-sm">
+        <div class="bg-info bg-opacity-10 text-info rounded-circle d-flex align-items-center justify-content-center me-2"
+            style="width: 32px; height: 32px;">
+            <i class="fa-solid fa-tags small"></i>
+        </div>
+        <span class="fw-bold fs-5 me-2 text-dark" style="line-height: 1;">{{ boarding_types.count }}</span>
+        <span class="text-muted fw-semibold text-uppercase pe-2"
+            style="letter-spacing: 0.5px; font-size: 0.70rem;">Boarding Packages</span>
+    </div>
+</div>
+
+<!-- Tabs header -->
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <ul class="nav nav-pills flex-wrap" id="boardingTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="active-tab" data-bs-toggle="tab" data-bs-target="#tab-active"
+                type="button" role="tab">Active Boardings</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#tab-history" type="button"
+                role="tab">History</button>
+        </li>
+        {% if request.user|is_admin %}
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="config-tab" data-bs-toggle="tab" data-bs-target="#tab-config" type="button"
+                role="tab">Configuration</button>
+        </li>
+        {% endif %}
+    </ul>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#boardPetModal">
+        <i class="fa-solid fa-person-walking-luggage me-1"></i> Check In Pet
+    </button>
+</div>
+
+<!-- Tab content -->
+<div class="tab-content bg-white border rounded-3 p-4" id="boardingTabsContent">
+
+    <!-- ACTIVE -->
+    <div class="tab-pane fade show active" id="tab-active" role="tabpanel">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle border mb-0" style="border-radius: 8px; overflow: hidden;">
+                <thead class="table-light">
+                    <tr>
+                        <th>Pet / Owner</th>
+                        <th>Cage</th>
+                        <th>Package / Rate</th>
+                        <th>Checked In</th>
+                        <th class="text-end" style="width:250px">Check Out</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for board in active_boardings %}
+                    <tr>
+                        <td>
+                            <div class="fw-bold text-primary" style="font-size: 1.05rem;">{{ board.pet.name }}</div>
+                            <div class="small text-muted"><i class="fa-regular fa-user me-1"></i>
+                                {{ board.pet.owner.name }} &mdash; <span class="phone-chip"><i
+                                        class="fa-solid fa-phone text-muted" style="font-size:.7rem"></i>{{ board.pet.owner.phone_number }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="cage-badge">
+                                <i class="fa-solid fa-border-all text-muted"></i>
+                                {{ board.get_cage_name }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="fw-semibold text-dark">{{ board.get_boarding_type_name }}</div>
+                            <div class="small text-muted">${{ board.get_price_per_day }}/day</div>
+                        </td>
+                        <td>
+                            <div class="d-flex flex-column gap-1">
+                                <span class="badge bg-light text-dark border align-self-start">
+                                    <i class="fa-regular fa-calendar-check me-1"></i>{{ board.start_date }}
+                                </span>
+                                {% if board.get_checked_in_by_name %}
+                                <div class="small text-muted" style="font-size: 0.70rem;">
+                                    <i class="fa-solid fa-user-check me-1"></i>In by: {{ board.get_checked_in_by_name }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-success d-flex align-items-center float-end"
+                                data-bs-toggle="modal" data-bs-target="#checkoutModal{{ board.id }}">
+                                <i class="fa-solid fa-right-from-bracket me-1"></i> Check Out
+                            </button>
+
+                            <!-- Check Out Modal for {{ board.pet.name }} -->
+                            <div class="modal fade text-start" id="checkoutModal{{ board.id }}" tabindex="-1"
+                                aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <form class="modal-content border-0 shadow" method="POST"
+                                        action="{% url 'end_boarding' board.id %}">
+                                        {% csrf_token %}
+                                        <div class="modal-header border-bottom-0 pb-0">
+                                            <h5 class="modal-title fw-bold">Check Out: {{ board.pet.name }}</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body p-4">
+                                            <div class="bg-light rounded p-3 mb-4">
+                                                <div class="row text-center g-2">
+                                                    <div class="col-6 border-end">
+                                                        <small class="text-muted d-block text-uppercase fw-bold"
+                                                            style="font-size:0.7rem">Package Rate</small>
+                                                        <span class="fw-bold">${{ board.get_price_per_day }} /
+                                                            day</span>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <small class="text-muted d-block text-uppercase fw-bold"
+                                                            style="font-size:0.7rem">Checked In</small>
+                                                        <span class="fw-bold">
+                                                            {{ board.start_date|date:"M d, Y" }}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold text-muted small">CHECK-OUT
+                                                    DATE</label>
+                                                <input type="date" name="end_date" class="form-control"
+                                                    id="checkoutDate{{ board.id }}" value="{% now 'Y-m-d' %}"
+                                                    min="{{ board.start_date|date:'Y-m-d' }}"
+                                                    onchange="window['calc_{{ board.id }}']()" required>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold text-muted small">DISCOUNT
+                                                    (MANUAL)</label>
+                                                <div class="input-group">
+                                                    <span class="input-group-text bg-light border-0">$</span>
+                                                    <input type="number" name="discount"
+                                                        class="form-control border-left-0" id="discount{{ board.id }}"
+                                                        value="0" step="0.01" min="0"
+                                                        oninput="window['calc_{{ board.id }}']()">
+                                                </div>
+                                            </div>
+
+                                            <div
+                                                class="d-flex justify-content-between align-items-center mt-4 p-3 bg-success bg-opacity-10 rounded border border-success border-opacity-25">
+                                                <div>
+                                                    <span
+                                                        class="d-block text-success fw-bold small text-uppercase mb-1">Total
+                                                        Stay</span>
+                                                    <span class="fs-4 fw-bold text-dark"
+                                                        id="totalDays{{ board.id }}">Calculates...</span>
+                                                </div>
+                                                <div class="text-end">
+                                                    <span
+                                                        class="d-block text-success fw-bold small text-uppercase mb-1">Amount
+                                                        Due</span>
+                                                    <span class="fs-4 fw-bold text-success"
+                                                        id="totalCost{{ board.id }}">$0.00</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer bg-light border-top-0 p-3">
+                                            <button type="button" class="btn btn-secondary"
+                                                data-bs-dismiss="modal">Cancel</button>
+                                            <button type="submit" class="btn btn-success fw-medium"><i
+                                                    class="fa-solid fa-check me-1"></i> Confirm Check Out</button>
+                                        </div>
+                                    </form>
+
+                                    <!-- Script to calculate totals dynamically for this modal -->
+                                    <script>
+                                        document.addEventListener("DOMContentLoaded", function () {
+                                            const boardId = "{{ board.id }}";
+                                            const startDateStr = "{{ board.start_date|date:'Y-m-d' }}";
+                                            const pricePerDay = parseFloat("{{ board.get_price_per_day }}");
+
+                                            window["calc_" + boardId] = function () {
+                                                const endDateStr = document.getElementById("checkoutDate" + boardId).value;
+                                                const discountInput = document.getElementById("discount" + boardId).value;
+                                                const discount = parseFloat(discountInput) || 0;
+                                                const start = new Date(startDateStr);
+                                                const end = new Date(endDateStr);
+
+                                                if (isNaN(end.getTime()) || end < start) {
+                                                    document.getElementById("totalDays" + boardId).innerText = "Invalid Date";
+                                                    document.getElementById("totalCost" + boardId).innerText = "$0.00";
+                                                    return;
+                                                }
+
+                                                // Calculate days difference + 1 to include both check-in and check-out days
+                                                const timeDiff = end.getTime() - start.getTime();
+                                                let daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
+
+                                                const totalCost = (daysDiff * pricePerDay) - discount;
+
+                                                document.getElementById("totalDays" + boardId).innerText = daysDiff + (daysDiff === 1 ? " Day" : " Days");
+                                                document.getElementById("totalCost" + boardId).innerText = "$" + totalCost.toFixed(2);
+                                            };
+
+                                            // Trigger calculation immediately when modal is opened
+                                            const currentModal = document.getElementById("checkoutModal" + boardId);
+                                            if (currentModal) {
+                                                currentModal.addEventListener("show.bs.modal", function () {
+                                                    window["calc_" + boardId]();
+                                                });
+                                            }
+                                        });
+                                    </script>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-5">
+                            <i class="fa-solid fa-box-open fs-2 mb-3 d-block"></i>
+                            <h6 class="fw-bold text-dark">No Pets Currently Boarding</h6>
+                            <p class="small mb-0">Click "Check In Pet" to start a boarding session.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="tab-pane fade" id="tab-history" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="d-flex align-items-center gap-3">
+                <h5 class="fw-bold mb-0">Past Boardings</h5>
+                <span
+                    class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-2 rounded-pill shadow-sm"
+                    style="font-size: 0.9rem;">
+                    <i class="fa-solid fa-money-bill-wave me-1"></i> Total Income: ${{ total_income|default:"0.00" }}
+                </span>
+            </div>
+            <form method="GET" class="d-flex align-items-center gap-2">
+                <label class="form-label mb-0 small text-muted fw-bold text-nowrap">FILTER BY MONTH:</label>
+                <input type="month" name="month" class="form-control form-control-sm" value="{{ selected_month }}"
+                    onchange="window.location.href = window.location.pathname + '?month=' + this.value + '#tab-history';">
+            </form>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Pet</th>
+                        <th>Package</th>
+                        <th>Cage</th>
+                        <th>Dates</th>
+                        <th>Days</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for board in boarding_history %}
+                    <tr>
+                        <td>
+                            <div class="fw-bold">{{ board.pet.name }}</div>
+                            <div class="small text-muted">
+                                {{ board.pet.owner.name }} &mdash; <span class="phone-chip"><i
+                                        class="fa-solid fa-phone text-muted" style="font-size:.7rem"></i>{{ board.pet.owner.phone_number }}</span>
+                            </div>
+                        </td>
+                        <td>{{ board.get_boarding_type_name }}</td>
+                        <td><span class="badge bg-secondary">{{ board.get_cage_name }}</span></td>
+                        <td>
+                            <div class="small fw-bold">{{ board.start_date }} &rarr; {{ board.end_date }}</div>
+                            <div class="small text-muted" style="font-size: 0.70rem;">
+                                {% if board.get_checked_in_by_name %}
+                                <div><i class="fa-solid fa-arrow-right-to-bracket text-success me-1"></i>
+                                    In: {{ board.get_checked_in_by_name }}</div>
+                                {% endif %}
+                                {% if board.get_checked_out_by_name %}
+                                <div><i class="fa-solid fa-arrow-right-from-bracket text-danger me-1"></i>
+                                    Out: {{ board.get_checked_out_by_name }}</div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>{{ board.days_stayed }}</td>
+                        <td>
+                            <div class="fw-bold text-success">${{ board.amount_owed }}</div>
+                            {% if board.discount > 0 %}
+                            <div class="small text-muted text-decoration-line-through">
+                                Original: ${{ board.total_before_discount }}</div>
+                            <div class="small text-danger" style="font-size: 0.65rem;">
+                                Discount: -${{ board.discount }}</div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">No past boarding records.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination for History -->
+        {% if history_page_obj.has_other_pages %}
+        <nav class="mt-4">
+            <ul class="pagination pagination-sm justify-content-center">
+                {% if history_page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link"
+                        href="?month={{ selected_month }}&history_page={{ history_page_obj.previous_page_number }}#tab-history">Previous</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link">Previous</span></li>
+                {% endif %}
+
+                {% for num in history_page_obj.paginator.page_range %}
+                {% if history_page_obj.number == num %}
+                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                {% elif num > history_page_obj.number|add:'-3' and num < history_page_obj.number|add:'3' %} <li
+                    class="page-item">
+                    <a class="page-link" href="?month={{ selected_month }}&history_page={{ num }}#tab-history">{{ num
+                        }}</a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+
+                    {% if history_page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link"
+                            href="?month={{ selected_month }}&history_page={{ history_page_obj.next_page_number }}#tab-history">Next</a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled"><span class="page-link">Next</span></li>
+                    {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+
+    {% if request.user|is_admin %}
+    <!-- CONFIGURATION -->
+    <div class="tab-pane fade" id="tab-config" role="tabpanel">
+        <div class="row g-5 mt-2">
+
+            <!-- Cages -->
+            <div class="col-md-6 border-end pe-md-5">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="fw-bold mb-0">Manage Cages</h5>
+                    <button type="button" class="btn btn-sm btn-dark" data-bs-toggle="modal"
+                        data-bs-target="#addCageModal">
+                        <i class="fa-solid fa-plus me-1"></i> Add Cage
+                    </button>
+                </div>
+
+                <!-- Add Cage Modal -->
+                <div class="modal fade" id="addCageModal" tabindex="-1" aria-labelledby="addCageModalLabel"
+                    aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content border-0 shadow">
+                            <div class="modal-header border-bottom-0 pb-0">
+                                <h5 class="modal-title fw-bold" id="addCageModalLabel">Add New Cage</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body p-4">
+                                <form action="{% url 'add_cage' %}" method="POST">
+                                    {% csrf_token %}
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold text-muted mb-1">Cage Identifier</label>
+                                        <input type="text" name="name" class="form-control bg-light"
+                                            placeholder="e.g. A1, Large Run" required>
+                                    </div>
+                                    <div class="mb-4">
+                                        <label class="form-label small fw-bold text-muted mb-1">Eligible Pet Types
+                                            (Optional)</label>
+                                        <select id="petTypeMultiSelect" name="pet_types" class="form-select bg-light"
+                                            multiple placeholder="Leave blank for 'Any'">
+                                            {% for pt in pet_types %}
+                                            <option value="{{ pt.id }}">{{ pt.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="d-grid mt-2">
+                                        <button type="submit" class="btn btn-dark py-2 fw-medium rounded mt-2">
+                                            <i class="fa-solid fa-plus me-1"></i> Add Cage
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {% if cages %}
+                <p class="small fw-bold text-muted mb-2 mt-5">Current Cages</p>
+                <div class="d-flex flex-column gap-2 mb-4">
+                    {% for cage in cages %}
+                    <div
+                        class="d-flex justify-content-between align-items-center bg-white p-3 border border-light rounded shadow-sm">
+                        <span class="fw-bold text-dark">
+                            <i class="fa-solid fa-border-all text-muted me-2"></i>{{ cage.name }}
+                        </span>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="d-flex gap-1 flex-wrap justify-content-end me-3">
+                                {% if cage.pet_types.all %}
+                                {% for pt in cage.pet_types.all %}
+                                <span class="badge border bg-light text-secondary rounded-pill px-2 shadow-sm">
+                                    {{ pt.name }}
+                                </span>
+                                {% endfor %}
+                                {% else %}
+                                <span
+                                    class="badge border bg-light text-secondary rounded-pill px-2 shadow-sm">Any</span>
+                                {% endif %}
+                            </div>
+                            <!-- Edit Button -->
+                            <button type="button" class="btn btn-sm btn-light border" data-bs-toggle="modal"
+                                data-bs-target="#editCageModal{{ cage.id }}"><i
+                                    class="fa-solid fa-pen text-muted"></i></button>
+                            <!-- Delete Form -->
+                            <form action="{% url 'delete_cage' cage.id %}" method="POST" class="m-0"
+                                onsubmit="return confirm('Are you sure you want to delete cage {{ cage.name }}?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-light border"><i
+                                        class="fa-solid fa-trash text-danger"></i></button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Edit Cage Modal -->
+                    <div class="modal fade" id="editCageModal{{ cage.id }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <form class="modal-content" action="{% url 'edit_cage' cage.id %}" method="POST">
+                                {% csrf_token %}
+                                <div class="modal-header">
+                                    <h5 class="modal-title fw-bold">Edit Cage: {{ cage.name }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold text-muted mb-1">Cage Identifier</label>
+                                        <input type="text" name="name" class="form-control" value="{{ cage.name }}"
+                                            required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold text-muted mb-1">Eligible Pet
+                                            Types</label>
+                                        <select name="pet_types" class="form-select edit-pet-types-select" multiple
+                                            placeholder="Leave blank for 'Any'">
+                                            {% for pt in pet_types %}
+                                            {% if pt in cage.pet_types.all %}
+                                            <option value="{{ pt.id }}" selected>{{ pt.name }}</option>
+                                            {% else %}
+                                            <option value="{{ pt.id }}">{{ pt.name }}</option>
+                                            {% endif %}
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="modal-footer bg-light">
+                                    <button type="button" class="btn btn-secondary"
+                                        data-bs-dismiss="modal">Cancel</button>
+                                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted small mt-4">No cages configured yet.</p>
+                {% endif %}
+            </div>
+
+            <!-- Boarding Types -->
+            <div class="col-md-6 ps-md-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="fw-bold mb-0">Boarding Packages</h5>
+                    <button type="button" class="btn btn-sm btn-dark" data-bs-toggle="modal"
+                        data-bs-target="#addPackageModal">
+                        <i class="fa-solid fa-plus me-1"></i> Add Package
+                    </button>
+                </div>
+
+                <!-- Add Package Modal -->
+                <div class="modal fade" id="addPackageModal" tabindex="-1" aria-labelledby="addPackageModalLabel"
+                    aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content border-0 shadow">
+                            <div class="modal-header border-bottom-0 pb-0">
+                                <h5 class="modal-title fw-bold" id="addPackageModalLabel">Add New Package</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body p-4">
+                                <form action="{% url 'add_boarding_type' %}" method="POST">
+                                    {% csrf_token %}
+                                    <div class="row g-3 mb-3">
+                                        <div class="col-8">
+                                            <input type="text" name="name" class="form-control bg-light"
+                                                placeholder="Package Name (e.g. Premium Care)" required>
+                                        </div>
+                                        <div class="col-4">
+                                            <div class="input-group">
+                                                <span
+                                                    class="input-group-text border-0 bg-light text-muted fw-bold">$</span>
+                                                <input type="number" step="0.01" name="price_per_day"
+                                                    class="form-control border-left-0 bg-light" placeholder="Price/Day"
+                                                    required>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p class="small fw-bold mb-2">Eligible Cages:</p>
+                                    <div class="d-flex flex-wrap gap-2 mb-4">
+                                        {% for cage in cages %}
+                                        <label class="cage-toggle-pill" for="chkcage{{ cage.id }}">
+                                            <input type="checkbox" name="cages" value="{{ cage.id }}"
+                                                id="chkcage{{ cage.id }}">
+                                            <span><i class="fa-solid fa-border-all me-1"></i>{{ cage.name }}</span>
+                                        </label>
+
+                                        {% endfor %}
+                                    </div>
+                                    <div class="d-grid mt-2">
+                                        <button type="submit" class="btn btn-dark py-2 fw-medium rounded">
+                                            <i class="fa-solid fa-plus me-1"></i> Add Package
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {% if boarding_types %}
+                <p class="small fw-bold text-muted mb-2">Available Packages</p>
+                <div class="list-group shadow-sm mb-4">
+                    {% for btype in boarding_types %}
+                    <div class="list-group-item py-3 border-light">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div>
+                                <strong class="d-block">{{ btype.name }}</strong>
+                                <small class="text-muted"><i class="fa-solid fa-tags me-1"></i>{{ btype.cages.count }}
+                                    cage(s) eligible</small>
+                            </div>
+                            <span class="badge bg-success fs-6 rounded-pill px-3 shadow-sm">
+                                ${{ btype.price_per_day }}/day
+                            </span>
+                        </div>
+                        <div class="d-flex justify-content-end gap-2 mt-2 pt-2 border-top">
+                            <button type="button" class="btn btn-sm btn-light border" data-bs-toggle="modal"
+                                data-bs-target="#editTypeModal{{ btype.id }}"><i
+                                    class="fa-solid fa-pen text-muted me-1"></i> Edit</button>
+                            <form action="{% url 'delete_boarding_type' btype.id %}" method="POST" class="m-0"
+                                onsubmit="return confirm('Are you sure you want to delete the package {{ btype.name }}?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-light border"><i
+                                        class="fa-solid fa-trash text-danger me-1"></i> Delete</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Edit Package Modal -->
+                    <div class="modal fade" id="editTypeModal{{ btype.id }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <form class="modal-content" action="{% url 'edit_boarding_type' btype.id %}" method="POST">
+                                {% csrf_token %}
+                                <div class="modal-header">
+                                    <h5 class="modal-title fw-bold">Edit Package: {{ btype.name }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row g-3 mb-3">
+                                        <div class="col-8">
+                                            <label class="form-label small fw-bold text-muted mb-1">Package Name</label>
+                                            <input type="text" name="name" class="form-control" value="{{ btype.name }}"
+                                                required>
+                                        </div>
+                                        <div class="col-4">
+                                            <label class="form-label small fw-bold text-muted mb-1">Price/Day</label>
+                                            <input type="number" step="0.01" name="price_per_day" class="form-control"
+                                                value="{{ btype.price_per_day }}" required>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold text-muted mb-2">Eligible Cages</label>
+                                        <div class="d-flex flex-wrap gap-2">
+                                            {% for cage in cages %}
+                                            <label class="cage-toggle-pill"
+                                                for="editTypeCage{{ btype.id }}_{{ cage.id }}">
+                                                <input type="checkbox" name="cages" value="{{ cage.id }}"
+                                                    id="editTypeCage{{ btype.id }}_{{ cage.id }}" {% if cage in btype.cages.all %}checked{% endif %}>
+                                                <span><i class="fa-solid fa-border-all me-1"></i>{{ cage.name }}</span>
+                                            </label>
+                                            {% endfor %}
+
+
+
+
+
+
+
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer bg-light">
+                                    <button type="button" class="btn btn-secondary"
+                                        data-bs-dismiss="modal">Cancel</button>
+                                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted small mt-4">No packages configured yet.</p>
+                {% endif %}
+            </div>
+
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Check In Modal -->
+<div class="modal fade" id="boardPetModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <form class="modal-content" method="POST" action="{% url 'board_pet' %}">
+            {% csrf_token %}
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Check In Pet</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Select Owner</label>
+                        <select id="ownerSelect" name="owner" class="form-select" required>
+                            <!-- Options populate dynamically via AJAX -->
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Select Pet</label>
+                        <select name="pet" id="petSelect" class="form-select" required disabled>
+                            <!-- Options populate dynamically via AJAX -->
+                        </select>
+                    </div>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Boarding Package</label>
+                        <select name="boarding_type" class="form-select" required>
+                            <option value="">Select package...</option>
+                            {% for b in boarding_types %}
+                            <option value="{{ b.id }}">{{ b.name }} (${{ b.price_per_day }}/day)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Assign Cage</label>
+                        <select id="cageSelect" name="cage" class="form-select" required>
+                            <option value="">Select cage...</option>
+                            {% for c in cages %}
+                            <option value="{{ c.id }}">{{ c.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Check-In Date</label>
+                    <input type="date" name="start_date" class="form-control" value="{% now 'Y-m-d' %}" required>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-person-walking-luggage me-1"></i>
+                    Check In</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Handle URL Hash for Tabs
+        if (window.location.hash) {
+            const hash = window.location.hash;
+            const triggerEl = document.querySelector(`button[data-bs-target="${hash}"]`);
+            if (triggerEl) {
+                const tab = new bootstrap.Tab(triggerEl);
+                tab.show();
+            }
+        }
+
+        const ownerSelectElement = document.getElementById('ownerSelect');
+        const petSelectElement = document.getElementById('petSelect');
+        const cageSelectElement = document.getElementById('cageSelect');
+
+        // Parse the cage data passed from views.py
+        const cagesDataRaw = '{{ cages_data_json|escapejs }}';
+        let cagesData = {};
+        if (cagesDataRaw) {
+            try {
+                cagesData = JSON.parse(cagesDataRaw);
+            } catch (e) {
+                console.error("Could not parse cages logic data");
+            }
+        }
+
+        // Initialize TomSelect for Cage Pet Types (Multiple)
+        if (document.getElementById('petTypeMultiSelect')) {
+            new TomSelect('#petTypeMultiSelect', {
+                plugins: ['remove_button', 'clear_button'],
+                placeholder: 'Leave blank for Any'
+            });
+        }
+
+        // Initialize TomSelect for dynamically added Edit Cage modals
+        document.querySelectorAll('.edit-pet-types-select').forEach(function (el) {
+            new TomSelect(el, {
+                plugins: ['remove_button', 'clear_button'],
+                placeholder: 'Leave blank for Any'
+            });
+        });
+
+        // Initialize TomSelect for Owner with AJAX Load
+        const tsOwner = new TomSelect('#ownerSelect', {
+            valueField: 'id',
+            labelField: 'text',
+            searchField: 'text',
+            placeholder: 'Type to search owner (name or phone)...',
+            preload: 'focus', // Load initial set when user clicks it
+            plugins: ['dropdown_input', 'clear_button'],
+            load: function (query, callback) {
+                const url = `{% url 'api_search_owners' %}?q=${encodeURIComponent(query)}`;
+                fetch(url)
+                    .then(response => response.json())
+                    .then(json => {
+                        callback(json.items);
+                    })
+                    .catch(() => {
+                        callback();
+                    });
+            }
+        });
+
+        // Initialize TomSelect for Pet (will load options dynamically)
+        const tsPet = new TomSelect('#petSelect', {
+            valueField: 'id',
+            labelField: 'text',
+            searchField: 'text',
+            placeholder: 'Choose owner first...',
+            plugins: ['dropdown_input', 'clear_button'],
+            render: {
+                option: function (data, escape) {
+                    if (data.is_boarded) {
+                        return `<div class="opacity-50 text-muted" style="pointer-events: none;">
+                                    ${escape(data.text)} <span class="badge bg-secondary ms-2 small">Already Boarded</span>
+                                </div>`;
+                    }
+                    return `<div>${escape(data.text)}</div>`;
+                },
+                item: function (data, escape) {
+                    return `<div>${escape(data.text)}</div>`;
+                }
+            }
+        });
+
+        // Handle cascading logic safely with backend
+        tsOwner.on('change', function (selectedOwnerId) {
+            tsPet.clear();
+            tsPet.clearOptions();
+            cageSelectElement.innerHTML = '<option value="">Select an empty cage...</option>';
+
+            if (!selectedOwnerId) {
+                tsPet.disable();
+                return;
+            }
+
+            // A placeholder trick to use Django's URL routing dynamically in JS
+            const rawUrl = `{% url 'api_get_owner_pets' 999999 %}`.replace('999999', selectedOwnerId);
+
+            fetch(rawUrl)
+                .then(response => response.json())
+                .then(json => {
+                    tsPet.enable();
+                    if (json.items && json.items.length > 0) {
+                        json.items.forEach(item => {
+                            // Automatically disable pets that are already boarded
+                            if (item.is_boarded) {
+                                item.disabled = true;
+                            }
+                            tsPet.addOption(item);
+                        });
+                    } else {
+                        tsPet.addOption({ id: '', text: 'No pets found' });
+                        tsPet.disable();
+                    }
+                })
+                .catch(() => {
+                    tsPet.disable();
+                });
+        });
+
+        // Filter the cages when a specific pet is chosen
+        tsPet.on('change', function (selectedPetId) {
+            cageSelectElement.innerHTML = '<option value="">Select cage...</option>';
+            if (!selectedPetId) return;
+
+            const petData = tsPet.options[selectedPetId];
+            if (!petData) return;
+
+            const pTypeId = petData.pet_type_id;
+            const originalOptionsHTML = `
+                {% for c in cages %}
+                <option value="{{ c.id }}" data-cage-id="{{ c.id }}">{{ c.name }}</option>
+                {% endfor %}
+            `;
+
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = originalOptionsHTML;
+            const allOptions = tempDiv.querySelectorAll('option');
+
+            allOptions.forEach(opt => {
+                const cid = opt.getAttribute('data-cage-id');
+                if (!cid) {
+                    cageSelectElement.appendChild(opt);
+                    return;
+                }
+
+                const cInfo = cagesData[cid];
+                if (!cInfo || !cInfo.is_empty) return; // Skip occupied cages
+
+                // If the cage has type restrictions, check them
+                // If pet_type_ids is empty, it means the cage accepts ANY pet
+                if (cInfo.pet_type_ids.length > 0) {
+                    if (!cInfo.pet_type_ids.includes(pTypeId)) return; // Pet type not allowed
+                }
+
+                cageSelectElement.appendChild(opt.cloneNode(true));
+            });
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,52 @@
+.bdy {
+
+    background-image: url(loginback.jpg); 
+    background-size:cover;
+}
+
+.transboard{
+
+    background-color:rgba(0, 0, 0, 0.463);
+    padding-top: 50px;
+    padding-bottom: 50px;
+    border-radius: 50px;
+}
+
+.titl {
+    text-align: center;
+    color: #ffffff;
+    font-weight: bold;
+    font-size: 55px;
+    font-family: pulp science;
+}
+
+.lgn{
+
+
+    padding-top:30px;
+    padding-left: 30px;
+    padding-right: 30px;
+}
+
+.inpt{
+
+    padding: 9px;
+}
+
+.btnplace{
+
+    justify-content: center;
+    display: flex;
+    padding-top: 20px;
+}
+
+.btnsize{
+    max-width: 340px;
+    flex: 1;
+
+}
+
+.txtclr{
+
+    color: #ffffff;
+}

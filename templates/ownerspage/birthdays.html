@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+{% load role_tags %}
+{% block title %}Today's Pet Birthdays{% endblock %}
+{% block page_title %}Birthdays 🎂{% endblock %}
+
+{% block content %}
+<style>
+    /* Festive UI styling */
+    .birthday-header {
+        background: linear-gradient(135deg, #fce7f3 0%, #ede9fe 100%);
+        border-radius: 12px;
+        padding: 30px;
+        margin-bottom: 25px;
+        text-align: center;
+        border: 1px solid #f3e8ff;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+
+    .birthday-icon-large {
+        font-size: 3rem;
+        margin-bottom: 10px;
+        animation: bounce 2s infinite;
+    }
+
+    @keyframes bounce {
+
+        0%,
+        100% {
+            transform: translateY(0);
+        }
+
+        50% {
+            transform: translateY(-10px);
+        }
+    }
+
+    .pet-card {
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+        transition: transform 0.2s, box-shadow 0.2s;
+        overflow: hidden;
+    }
+
+    .pet-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        border-color: #cbd5e1;
+    }
+
+    .pet-card-header {
+        background: #f8fafc;
+        border-bottom: 1px solid #f1f5f9;
+        padding: 15px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .pet-card-body {
+        padding: 20px;
+    }
+
+    .age-badge {
+        color: #6b21a8;
+        background-color: #f3e8ff;
+        padding: 5px 12px;
+        border-radius: 50px;
+        font-weight: bold;
+        font-size: 0.85rem;
+        letter-spacing: 0.5px;
+    }
+
+    .phone-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: #f1f5f9;
+        border-radius: 6px;
+        padding: 3px 10px;
+        font-size: .82rem;
+        color: #334155;
+        font-family: monospace;
+    }
+
+    .pet-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: #fdf4ff;
+        border: 1px solid #fae8ff;
+        border-radius: 6px;
+        padding: 3px 10px;
+        font-size: .82rem;
+        color: #86198f;
+        font-weight: 500;
+    }
+</style>
+
+<div class="row">
+    <div class="col-12">
+        <div class="birthday-header">
+            <div class="birthday-icon-large">🎉🐾🎈</div>
+            <h2 class="fw-bold text-dark mb-2">Today's Bark-days & Purr-days!</h2>
+            <p class="text-muted mb-0 fs-5">
+                {{ today|date:"F j, Y" }}
+            </p>
+            <div class="mt-3">
+                <span class="badge bg-white text-dark border px-4 py-2 fs-6 shadow-sm rounded-pill">
+                    <span class="text-primary fw-bold">{{ pets_data|length }}</span> Pets Celebrating Today!
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-5">
+    {% for item in pets_data %}
+    <div class="col-md-6 col-lg-4">
+        <div class="pet-card h-100 d-flex flex-column">
+            <div class="pet-card-header">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="fs-4">
+                        {% if item.pet.pet_type.name|lower == 'dog' %}🐶
+                        {% elif item.pet.pet_type.name|lower == 'cat' %}🐱
+                        {% elif item.pet.pet_type.name|lower == 'bird' %}🦜
+                        {% else %}🐾{% endif %}
+                    </span>
+                    <h5 class="fw-bold mb-0 text-dark">{{ item.pet.name }}</h5>
+                </div>
+                <div class="age-badge">
+                    Turning {{ item.pet.age }}
+                </div>
+            </div>
+
+            <div class="pet-card-body flex-grow-1">
+                <div class="mb-3">
+                    <a href="{% url 'owner_detail' item.pet.owner.id %}"
+                        class="fw-bold text-decoration-none text-dark d-block mb-1">
+                        <i class="fa-regular fa-user text-muted me-1"></i> {{ item.pet.owner.name }}
+                    </a>
+                    <span class="phone-chip mb-2"><i class="fa-solid fa-phone text-muted" style="font-size:.7rem"></i>{{ item.pet.owner.phone_number }}</span>
+                </div>
+
+                <div class="d-flex gap-2 flex-wrap mb-4">
+                    <span class="pet-chip"><i class="fa-solid fa-hashtag text-muted" style="font-size:.7rem"></i>{{ item.pet.code }}</span>
+                    <span class="pet-chip"><i class="fa-solid fa-tag text-muted" style="font-size:.7rem"></i>{{ item.pet.pet_type.name }}</span>
+                </div>
+
+                <div class="mt-auto">
+                    <a href="{{ item.whatsapp_url }}" target="_blank"
+                        class="btn btn-success w-100 py-2 fw-medium d-flex align-items-center justify-content-center gap-2"
+                        style="background-color: #25D366; border-color: #25D366;">
+                        <i class="fa-brands fa-whatsapp fs-5"></i>
+                        <span>Send Greetings</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12 text-center py-5">
+        <div class="mb-4 text-muted" style="font-size: 4rem;">💤</div>
+        <h4 class="fw-bold text-dark">No birthdays today</h4>
+        <p class="text-muted">None of the active pets have a birthday recorded for {{ today|date:"F j, Y" }}.</p>
+    </div>
+    {% endfor %}
+</div>
+
+{% endblock %}
