@@ -22,6 +22,7 @@ class PetType(models.Model):
 class Owner(models.Model):
     name = models.CharField(max_length=100, db_index=True)
     phone_number = models.CharField(max_length=20, db_index=True)
+    address = models.CharField(max_length=255, blank=True, null=True)
     joined_date = models.DateField(auto_now_add=True)
 
     class Meta:

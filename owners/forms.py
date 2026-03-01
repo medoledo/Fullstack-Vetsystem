@@ -5,10 +5,11 @@ from .models import Owner, Pet, PetType
 class OwnerForm(forms.ModelForm):
     class Meta:
         model = Owner
-        fields = ['name', 'phone_number']
+        fields = ['name', 'phone_number', 'address']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Owner Name'}),
             'phone_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Phone Number'}),
+            'address': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Address (optional)'}),
         }
 
 
