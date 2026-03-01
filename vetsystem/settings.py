@@ -9,12 +9,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(os.path.join(BASE_DIR, '.env'))
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-h&padjgi+k9v$fk^%zc(d3^1$bla33rd4=#t8wt0fg1b+oe24y')
+SECRET_KEY = os.environ['SECRET_KEY']
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'vet.savekiteg.com,localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
 
 INSTALLED_APPS = [
     'owners.apps.OwnersConfig',
@@ -61,6 +61,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'vetsystem.wsgi.application'
 
+# Database Setup
 if DEBUG:
     DATABASES = {
         'default': {
@@ -72,11 +73,11 @@ else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'vetsystem_db',
-            'USER': 'medoledo144',
-            'PASSWORD': '0543509195Te@',
-            'HOST': 'localhost',
-            'PORT': '5432',
+            'NAME': os.environ['DB_NAME'],
+            'USER': os.environ['DB_USER'],
+            'PASSWORD': os.environ['DB_PASSWORD'],
+            'HOST': os.environ.get('DB_HOST', 'localhost'),
+            'PORT': os.environ.get('DB_PORT', '5432'),
         }
     }
 
@@ -92,8 +93,8 @@ TIME_ZONE = 'Africa/Cairo'
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = 'static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'vetsystem/static')
 ]
@@ -106,20 +107,21 @@ LOGIN_REDIRECT_URL = '/home/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Custom CSRF failure view to handle expired tokens gracefully
 CSRF_FAILURE_VIEW = 'vetlogin.views.custom_csrf_failure'
-
 
 # Production Security Settings
 if not DEBUG:
-    # Ensure connections are over HTTPS
-    # SECURE_SSL_REDIRECT = True # Uncomment if you have SSL setup on the server!
-    
-    # Secure cookies
+    # Trust Nginx X-Forwarded-Proto header
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+    # Allow forms and logins from the production domain
+    CSRF_TRUSTED_ORIGINS = ['https://vet.savekiteg.com']
+
+    # Secure cookies — only sent over HTTPS
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    
-    # HTTP Strict Transport Security
-    SECURE_HSTS_SECONDS = 31536000 # 1 year
+
+    # HTTP Strict Transport Security (HSTS) — 1 year
+    SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
