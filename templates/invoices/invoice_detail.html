@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+{% load role_tags %}
+{% block title %}Invoice {{ invoice.reference }}{% endblock %}
+{% block page_title %}Invoice{% endblock %}
+
+{% block content %}
+<style>
+    .invoice-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 32px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, .05);
+        max-width: 800px;
+    }
+
+    .invoice-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 24px;
+    }
+
+    .inv-ref {
+        font-size: 1.4rem;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .inv-meta {
+        font-size: .85rem;
+        color: #64748b;
+    }
+
+    .inv-meta span {
+        display: block;
+        margin-bottom: 2px;
+    }
+
+    .inv-table th {
+        font-size: .75rem;
+        text-transform: uppercase;
+        letter-spacing: .4px;
+        color: #64748b;
+    }
+
+    .inv-table td {
+        vertical-align: middle;
+    }
+
+    .inv-total-row td {
+        font-weight: 700;
+        font-size: 1.1rem;
+        border-top: 2px solid #0f172a !important;
+    }
+
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+
+        .invoice-card {
+            box-shadow: none;
+            border: none;
+        }
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-3 no-print">
+    <a href="{% url 'invoice_list' %}" class="btn btn-outline-secondary btn-sm"><i
+            class="fa-solid fa-arrow-left me-1"></i> Back to Invoices</a>
+    <button onclick="window.print()" class="btn btn-primary btn-sm"><i class="fa-solid fa-print me-1"></i>
+        Print</button>
+</div>
+
+<div class="invoice-card">
+    <div class="invoice-header">
+        <div>
+            <div class="inv-ref">INV-{{ invoice.reference }}</div>
+            <span class="badge bg-primary rounded-pill px-3 mt-1">{{ invoice.get_source_display }}</span>
+        </div>
+        <div class="inv-meta text-end">
+            <span><i class="fa-solid fa-calendar me-1"></i> {{ invoice.created_at|date:"d M Y, h:i A" }}</span>
+            <span><i class="fa-solid fa-user me-1"></i> {{ invoice.creator_name }}</span>
+            <span><i class="fa-solid fa-building me-1"></i> {{ invoice.clinic.name }}</span>
+        </div>
+    </div>
+
+    {% if invoice.customer_name %}
+    <div class="mb-3">
+        <span class="text-muted small fw-bold">CUSTOMER</span>
+        <div class="fw-semibold">{{ invoice.customer_name }}</div>
+    </div>
+    {% endif %}
+
+    {% if invoice.notes %}
+    <div class="mb-3">
+        <span class="text-muted small fw-bold">NOTES</span>
+        <div class="text-muted small">{{ invoice.notes }}</div>
+    </div>
+    {% endif %}
+
+    <table class="table inv-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Item</th>
+                <th class="text-center">Qty</th>
+                <th class="text-end">Unit Price</th>
+                <th class="text-end">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in invoice.items.all %}
+            <tr>
+                <td class="text-muted">{{ forloop.counter }}</td>
+                <td class="fw-medium">{{ item.name }}</td>
+                <td class="text-center">{{ item.quantity }}</td>
+                <td class="text-end">${{ item.unit_price }}</td>
+                <td class="text-end fw-semibold">${{ item.line_total }}</td>
+            </tr>
+            {% endfor %}
+            <tr class="inv-total-row">
+                <td colspan="4" class="text-end">TOTAL</td>
+                <td class="text-end">${{ invoice.total_amount }}</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endblock %}

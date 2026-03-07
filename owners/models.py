@@ -1,6 +1,7 @@
 from django.db import models
 import secrets
 import string
+from clinics.models import Clinic
 
 
 def generate_pet_code():
@@ -13,13 +14,18 @@ def generate_pet_code():
 
 
 class PetType(models.Model):
-    name = models.CharField(max_length=50, unique=True)
+    clinic = models.ForeignKey(Clinic, on_delete=models.CASCADE, related_name='pet_types')
+    name = models.CharField(max_length=50)
+
+    class Meta:
+        unique_together = ('clinic', 'name')
 
     def __str__(self):
         return self.name
 
 
 class Owner(models.Model):
+    clinic = models.ForeignKey(Clinic, on_delete=models.CASCADE, related_name='owners')
     name = models.CharField(max_length=100, db_index=True)
     phone_number = models.CharField(max_length=20, db_index=True)
     address = models.CharField(max_length=255, blank=True, null=True)

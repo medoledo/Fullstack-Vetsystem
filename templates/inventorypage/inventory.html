@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load role_tags %}
-{% block title %}Inventory | Queen Center{% endblock %}
+{% block title %}Inventory{% endblock %}
 {% block page_title %}Inventory{% endblock %}
 
 {% block content %}
@@ -395,17 +395,26 @@
             onchange="this.form.submit()">
             <option value="">All Categories</option>
             {% for cat in categories %}
-            <option value="{{ cat.id }}" {% if cat.id == category_filter_int %}selected{% endif %}>{{ cat.name }}</option>
+            <option value="{{ cat.id }}" {% if cat.id|stringformat:'s' == selected_category %}selected{% endif %}>{{         cat.name }}</option>
             {% endfor %}
         </select>
         <select name="status" class="form-select form-select-sm" style="max-width:200px;" onchange="this.form.submit()">
             <option value="">All Statuses</option>
-            <option value="low_stock" {% if status_filter == 'low_stock' %}selected{% endif %}>Low Stock Only</option>
-            <option value="expiring_soon" {% if status_filter == 'expiring_soon' %}selected{% endif %}>Expiring Soon</option>
+            <option value="low" {% if selected_status == 'low' %}selected{% endif %}>Low Stock Only</option>
+            <option value="expired" {% if selected_status == 'expired' %}selected{% endif %}>Expired</option>
+            <option value="warning" {% if selected_status == 'warning' %}selected{% endif %}>Expiring Soon</option>
         </select>
         <button type="submit" class="btn btn-primary btn-sm px-3"><i class="fa-solid fa-search me-1"></i>
             Search</button>
-        {% if search_q or category_filter or status_filter %}
+        {% if is_clinic_owner_user %}
+        <select name="inv_type" class="form-select form-select-sm" style="max-width:160px;"
+            onchange="this.form.submit()">
+            <option value="">All Inventory</option>
+            <option value="clinic" {% if selected_inv_type == 'clinic' %}selected{% endif %}>Clinic</option>
+            <option value="petshop" {% if selected_inv_type == 'petshop' %}selected{% endif %}>Petshop</option>
+        </select>
+        {% endif %}
+        {% if search_q or selected_category or selected_status or selected_inv_type %}
         <a href="?tab=items" class="btn btn-light btn-sm px-3"><i class="fa-solid fa-xmark me-1"></i> Clear</a>
         {% endif %}
         <div class="ms-auto d-flex align-items-center gap-2">
@@ -466,7 +475,7 @@
                             {% else %}
                             <span class="fw-semibold {% if d.is_low_stock %}text-danger{% endif %}">{{ d.total_qty }}</span>
                             {% if d.item.unit %}<span class="text-muted ms-1" style="font-size:.78rem;">{{ d.item.unit }}</span>{% endif %}
-                            <span class="text-muted ms-1" style="font-size:.72rem;">({{ d.batches|length }} batch{{ d.batches|length|pluralize:"es" }})</span>
+                            <span class="text-muted ms-1" style="font-size:.72rem;">({{ d.batches|length }} batch{{                 d.batches|length|pluralize:"es" }})</span>
                             {% endif %}
                         </td>
                         <td class="fw-semibold">${{ d.item.price }}</td>
@@ -474,104 +483,139 @@
                             {% if d.item.category.is_infinite %}—
                             {% elif d.nearest_exp %}
                             <span
-                                class="{% if d.expiry_status == 'expired' %}text-danger fw-semibold{% elif d.expiry_status == 'warning' %}text-warning fw-semibold{% endif %}">{{ d.nearest_exp|date:"d M Y" }}</span>
+                                class="{% if d.expiry_status == 'expired' %}text-danger fw-semibold{% elif d.expiry_status == 'warning' %}text-warning fw-semibold{% endif %}">{{                 d.nearest_exp|date:"d M Y" }}</span>
                             {% else %}—{% endif %}
                         </td>
                         <td style="min-width:140px;">
-    {% if d.is_low_stock %}<span class="badge-low me-1"><i class="fa-solid fa-triangle-exclamation me-1"></i>Low Stock</span>{% endif %}
-    {% if d.expiry_status == 'expired' %}<span class="badge-exp"><i class="fa-solid fa-skull-crossbones me-1"></i>Expired</span>{% elif d.expiry_status == 'warning' %}<span class="badge-warn"><i class="fa-solid fa-clock me-1"></i>Expiring Soon</span>{% elif d.expiry_status == 'ok' %}{% if not d.is_low_stock %}<span class="badge-ok"><i class="fa-solid fa-check me-1"></i>OK</span>{% endif %}{% endif %}
-    {% if d.item.category.is_infinite %}<span class="badge-inf"><i class="fa-solid fa-check me-1"></i>OK</span>{% endif %}
-</td>
-{% if request.user|is_admin %}
-<td class="text-end" style="white-space:nowrap;">
-    <div class="dropdown">
-        <button class="btn btn-light btn-sm px-2" type="button" data-bs-toggle="dropdown" data-bs-boundary="window">
-            <i class="fa-solid fa-ellipsis-vertical"></i>
-        </button>
-        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 z-3">
-            <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#addBatchModal{{ d.item.id }}"><i class="fa-solid fa-layer-plus me-2 text-success"></i> Add Batch</a></li>
-            <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#editItemModal{{ d.item.id }}"><i class="fa-solid fa-pen-to-square me-2 text-primary"></i> Edit Item</a></li>
-            <li><hr class="dropdown-divider"></li>
-            <li><a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#deleteItemModal{{ d.item.id }}"><i class="fa-solid fa-trash me-2"></i> Delete Item</a></li>
-        </ul>
-    </div>
-</td>
-{% endif %}
-</tr>
-{% if d.batches %}
-<tr id="batches-{{ d.item.id }}" class="batches-row bg-light" style="display:none;">
-    <td colspan="{% if request.user|is_admin %}8{% else %}7{% endif %}" class="p-0 border-0">
-        <div class="p-3">
-            <div class="fw-semibold text-muted mb-2 ps-2" style="font-size:.8rem;text-transform:uppercase;">Batches for {{ d.item.name }}</div>
-            <table class="table table-sm table-borderless mb-0">
-                <thead class="text-muted" style="font-size:.85rem;">
-                    <tr>
-                        <th style="width:140px;">Date Received</th>
-                        <th style="width:140px;">Quantity</th>
-                        <th style="width:140px;">Expiration</th>
-                        <th>Notes</th>
-                        {% if request.user|is_admin %}<th class="text-end" style="width:100px;">Actions</th>{% endif %}
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for batch in d.batches %}
-                    <tr style="font-size:.9rem;">
-                        <td class="text-dark">{{ batch.date_received|date:"d M Y" }}</td>
-                        <td class="fw-medium">{{ batch.quantity }} {% if d.item.unit %}<span class="text-muted" style="font-size:.75rem;">{{ d.item.unit }}</span>{% endif %}</td>
-                        <td>
-                            {% if batch.expiration_date %}
-                            <span class="{% if batch.expiration_date < today %}text-danger fw-bold{% elif batch.expiration_date <= warn_days %}text-warning fw-bold{% else %}text-muted{% endif %}">{{ batch.expiration_date|date:"d M Y" }}</span>
-                            {% else %}{% endif %}
+                            {% if d.is_low_stock %}<span class="badge-low me-1"><i
+                                    class="fa-solid fa-triangle-exclamation me-1"></i>Low Stock</span>{% endif %}
+                            {% if d.expiry_status == 'expired' %}<span class="badge-exp"><i
+                                    class="fa-solid fa-skull-crossbones me-1"></i>Expired</span>{% elif d.expiry_status               == 'warning' %}<span class="badge-warn"><i class="fa-solid fa-clock me-1"></i>Expiring
+                                Soon</span>{% elif d.expiry_status == 'ok' %}{% if not d.is_low_stock %}<span
+                                class="badge-ok"><i class="fa-solid fa-check me-1"></i>OK</span>{% endif %}{% endif %}
+                            {% if d.item.category.is_infinite %}<span class="badge-inf"><i
+                                    class="fa-solid fa-check me-1"></i>OK</span>{% endif %}
                         </td>
-                        <td class="text-muted">{{ batch.notes|default:"" }}</td>
                         {% if request.user|is_admin %}
-                        <td class="text-end pe-3" style="white-space:nowrap;">
+                        <td class="text-end" style="white-space:nowrap;">
                             <div class="dropdown">
-                                <button class="btn btn-light btn-sm px-2" type="button" data-bs-toggle="dropdown" data-bs-boundary="window">
+                                <button class="btn btn-light btn-sm px-2" type="button" data-bs-toggle="dropdown"
+                                    data-bs-boundary="window">
                                     <i class="fa-solid fa-ellipsis-vertical"></i>
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 z-3">
-                                    <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#editBatchModal{{ batch.id }}"><i class="fa-solid fa-pen-to-square me-2 text-primary"></i> Edit Batch</a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#deleteBatchModal{{ batch.id }}"><i class="fa-solid fa-trash me-2"></i> Delete Batch</a></li>
+                                    <li><a class="dropdown-item" href="#" data-bs-toggle="modal"
+                                            data-bs-target="#addBatchModal{{ d.item.id }}"><i
+                                                class="fa-solid fa-layer-plus me-2 text-success"></i> Add Batch</a></li>
+                                    <li><a class="dropdown-item" href="#" data-bs-toggle="modal"
+                                            data-bs-target="#editItemModal{{ d.item.id }}"><i
+                                                class="fa-solid fa-pen-to-square me-2 text-primary"></i> Edit Item</a>
+                                    </li>
+                                    <li>
+                                        <hr class="dropdown-divider">
+                                    </li>
+                                    <li><a class="dropdown-item text-danger" href="#" data-bs-toggle="modal"
+                                            data-bs-target="#deleteItemModal{{ d.item.id }}"><i
+                                                class="fa-solid fa-trash me-2"></i> Delete Item</a></li>
                                 </ul>
                             </div>
                         </td>
                         {% endif %}
                     </tr>
+                    {% if d.batches %}
+                    <tr id="batches-{{ d.item.id }}" class="batches-row bg-light" style="display:none;">
+                        <td colspan="{% if request.user|is_admin %}8{% else %}7{% endif %}" class="p-0 border-0">
+                            <div class="p-3">
+                                <div class="fw-semibold text-muted mb-2 ps-2"
+                                    style="font-size:.8rem;text-transform:uppercase;">Batches for {{ d.item.name }}
+                                </div>
+                                <table class="table table-sm table-borderless mb-0">
+                                    <thead class="text-muted" style="font-size:.85rem;">
+                                        <tr>
+                                            <th style="width:140px;">Date Received</th>
+                                            <th style="width:140px;">Quantity</th>
+                                            <th style="width:140px;">Expiration</th>
+                                            <th>Notes</th>
+                                            {% if request.user|is_admin %}<th class="text-end" style="width:100px;">
+                                                Actions</th>{% endif %}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for batch in d.batches %}
+                                        <tr style="font-size:.9rem;">
+                                            <td class="text-dark">{{ batch.date_received|date:"d M Y" }}</td>
+                                            <td class="fw-medium">{{ batch.quantity }} {% if d.item.unit %}<span
+                                                    class="text-muted" style="font-size:.75rem;">{{ d.item.unit }}</span>{% endif %}</td>
+                                            <td>
+                                                {% if batch.expiration_date %}
+                                                <span
+                                                    class="{% if batch.expiration_date < today %}text-danger fw-bold{% elif batch.expiration_date <= warn_days %}text-warning fw-bold{% else %}text-muted{% endif %}">{{                           batch.expiration_date|date:"d M Y" }}</span>
+                                                {% else %}{% endif %}
+                                            </td>
+                                            <td class="text-muted">{{ batch.notes|default:"" }}</td>
+                                            {% if request.user|is_admin %}
+                                            <td class="text-end pe-3" style="white-space:nowrap;">
+                                                <div class="dropdown">
+                                                    <button class="btn btn-light btn-sm px-2" type="button"
+                                                        data-bs-toggle="dropdown" data-bs-boundary="window">
+                                                        <i class="fa-solid fa-ellipsis-vertical"></i>
+                                                    </button>
+                                                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 z-3">
+                                                        <li><a class="dropdown-item" href="#" data-bs-toggle="modal"
+                                                                data-bs-target="#editBatchModal{{ batch.id }}"><i
+                                                                    class="fa-solid fa-pen-to-square me-2 text-primary"></i>
+                                                                Edit Batch</a></li>
+                                                        <li>
+                                                            <hr class="dropdown-divider">
+                                                        </li>
+                                                        <li><a class="dropdown-item text-danger" href="#"
+                                                                data-bs-toggle="modal"
+                                                                data-bs-target="#deleteBatchModal{{ batch.id }}"><i
+                                                                    class="fa-solid fa-trash me-2"></i> Delete Batch</a>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </td>
+                                            {% endif %}
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
                     {% endfor %}
                 </tbody>
             </table>
         </div>
-    </td>
-</tr>
-{% endif %}
-{% endfor %}
-                </tbody>
-            </table>
-        </div>
-        
+
         <!-- Pagination -->
         {% if items_page.paginator.num_pages > 1 %}
         <div class="card-footer bg-white py-3 border-0">
             <nav>
                 <ul class="pagination pagination-sm justify-content-center mb-0">
                     {% if items_page.has_previous %}
-                    <li class="page-item"><a class="page-link" href="?tab=items&q={{ search_q }}&category={{ category_filter }}&status={{ status_filter }}&per_page={{ per_page }}&page={{ items_page.previous_page_number }}">Prev</a></li>
+                    <li class="page-item"><a class="page-link"
+                            href="?tab=items&q={{ search_q }}&category={{ category_filter }}&status={{ status_filter }}&per_page={{ per_page }}&page={{ items_page.previous_page_number }}">Prev</a>
+                    </li>
                     {% endif %}
                     {% for p in items_page.paginator.page_range %}
                     <li class="page-item {% if p == items_page.number %}active{% endif %}">
-                        <a class="page-link" href="?tab=items&q={{ search_q }}&category={{ category_filter }}&status={{ status_filter }}&per_page={{ per_page }}&page={{ p }}">{{ p }}</a>
+                        <a class="page-link"
+                            href="?tab=items&q={{ search_q }}&category={{ category_filter }}&status={{ status_filter }}&per_page={{ per_page }}&page={{ p }}">{{               p }}</a>
                     </li>
                     {% endfor %}
                     {% if items_page.has_next %}
-                    <li class="page-item"><a class="page-link" href="?tab=items&q={{ search_q }}&category={{ category_filter }}&status={{ status_filter }}&per_page={{ per_page }}&page={{ items_page.next_page_number }}">Next</a></li>
+                    <li class="page-item"><a class="page-link"
+                            href="?tab=items&q={{ search_q }}&category={{ category_filter }}&status={{ status_filter }}&per_page={{ per_page }}&page={{ items_page.next_page_number }}">Next</a>
+                    </li>
                     {% endif %}
                 </ul>
             </nav>
         </div>
         {% endif %}
-        
+
         {% else %}
         <div class="text-center py-5 text-muted">
             <i class="fa-solid fa-box-open fa-3x mb-3 opacity-25"></i>
@@ -617,13 +661,20 @@
                         {% if request.user|is_admin %}
                         <td class="text-end" style="white-space:nowrap;">
                             <div class="dropdown">
-                                <button class="btn btn-light btn-sm px-2" type="button" data-bs-toggle="dropdown" data-bs-boundary="window">
+                                <button class="btn btn-light btn-sm px-2" type="button" data-bs-toggle="dropdown"
+                                    data-bs-boundary="window">
                                     <i class="fa-solid fa-ellipsis-vertical"></i>
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 z-3">
-                                    <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#editCatModal{{ cat.id }}"><i class="fa-solid fa-pen-to-square me-2 text-primary"></i> Edit</a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#deleteCatModal{{ cat.id }}"><i class="fa-solid fa-trash me-2"></i> Delete</a></li>
+                                    <li><a class="dropdown-item" href="#" data-bs-toggle="modal"
+                                            data-bs-target="#editCatModal{{ cat.id }}"><i
+                                                class="fa-solid fa-pen-to-square me-2 text-primary"></i> Edit</a></li>
+                                    <li>
+                                        <hr class="dropdown-divider">
+                                    </li>
+                                    <li><a class="dropdown-item text-danger" href="#" data-bs-toggle="modal"
+                                            data-bs-target="#deleteCatModal{{ cat.id }}"><i
+                                                class="fa-solid fa-trash me-2"></i> Delete</a></li>
                                 </ul>
                             </div>
                         </td>
@@ -634,7 +685,7 @@
             </table>
         </div>
         {% else %}
-<div class="text-center py-5 text-muted">
+        <div class="text-center py-5 text-muted">
             <i class="fa-solid fa-folder-open fa-3x mb-3 opacity-25"></i>
             <p class="mb-1 fw-semibold">No categories yet</p>
         </div>
@@ -706,7 +757,7 @@
                             <select name="category" class="form-select" id="addItemCategory" required>
                                 <option value="">— Select —</option>
                                 {% for cat in categories %}
-                                <option value="{{ cat.id }}" data-infinite="{{ cat.is_infinite|yesno:'1,0' }}">{{ cat.name }}</option>
+                                <option value="{{ cat.id }}" data-infinite="{{ cat.is_infinite|yesno:'1,0' }}">{{                   cat.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -791,7 +842,7 @@
                             <label class="form-label">Category <span class="text-danger">*</span></label>
                             <select name="category" class="form-select" required>
                                 {% for cat in categories %}
-                                <option value="{{ cat.id }}" {% if cat.id == d.item.category.id %}selected{% endif %}>{{ cat.name }}</option>
+                                <option value="{{ cat.id }}" {% if cat.id == d.item.category.id %}selected{% endif %}>{{                   cat.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -805,7 +856,8 @@
                             <select name="unit" class="form-select">
                                 <option value=""> Select Unit </option>
                                 {% for val, label in unit_choices %}
-                                <option value="{{ val }}" {% if d.item.unit == val %}selected{% endif %}>{{ label }}</option>
+                                <option value="{{ val }}" {% if d.item.unit == val %}selected{% endif %}>{{ label }}
+                                </option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -953,7 +1005,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="mb-0">Delete this batch of <strong>{{ batch.quantity }}{% if d.item.unit %} {{ d.item.unit }}{% endif %}</strong>{% if batch.expiration_date %} (expires {{ batch.expiration_date|date:"d M Y" }}){% endif %}? Cannot be undone.</p>
+                    <p class="mb-0">Delete this batch of <strong>{{ batch.quantity }}{% if d.item.unit %} {{ d.item.unit }}{% endif %}</strong>{% if batch.expiration_date %} (expires {{             batch.expiration_date|date:"d M Y" }}){% endif %}? Cannot be undone.</p>
                 </div>
                 <div class="modal-footer border-0 pt-0">
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
@@ -1075,7 +1127,8 @@
             <form method="post" action="{% url 'add_batch' d.item.id %}">
                 {% csrf_token %}
                 <div class="modal-header bg-light border-0">
-                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-layer-plus me-2 text-success"></i> Add Batch: {{ d.item.name }}</h5>
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-layer-plus me-2 text-success"></i> Add Batch:
+                        {{ d.item.name }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -1090,7 +1143,8 @@
                         </div>
                         <div class="col-sm-6">
                             <label class="form-label fw-medium">Date Received</label>
-                            <input type="date" class="form-control" name="date_received" value="{% now 'Y-m-d' %}" required>
+                            <input type="date" class="form-control" name="date_received" value="{% now 'Y-m-d' %}"
+                                required>
                         </div>
                         <div class="col-12">
                             <label class="form-label fw-medium">Notes</label>
@@ -1100,7 +1154,8 @@
                 </div>
                 <div class="modal-footer border-0">
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary px-4"><i class="fa-solid fa-plus me-1"></i> Add Batch</button>
+                    <button type="submit" class="btn btn-primary px-4"><i class="fa-solid fa-plus me-1"></i> Add
+                        Batch</button>
                 </div>
             </form>
         </div>
@@ -1114,26 +1169,32 @@
             <form method="post" action="{% url 'edit_item' d.item.id %}">
                 {% csrf_token %}
                 <div class="modal-header bg-light border-0">
-                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-pen-to-square me-2 text-primary"></i> Edit Item: {{ d.item.name }}</h5>
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-pen-to-square me-2 text-primary"></i> Edit
+                        Item: {{ d.item.name }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="row g-3">
-                        <div class="col-12"><label class="form-label fw-medium">Name</label><input type="text" class="form-control" name="name" value="{{ d.item.name }}" required></div>
+                        <div class="col-12"><label class="form-label fw-medium">Name</label><input type="text"
+                                class="form-control" name="name" value="{{ d.item.name }}" required></div>
                         <div class="col-sm-6"><label class="form-label fw-medium">Category</label>
                             <select class="form-select" name="category" required>
                                 {% for cat in categories %}<option value="{{ cat.id }}" {% if cat.id == d.item.category.id %}selected{% endif %}>{{ cat.name }}</option>{% endfor %}
-                            </select></div>
+                            </select>
+                        </div>
                         <div class="col-sm-6"><label class="form-label fw-medium">Unit</label>
                             <select class="form-select" name="unit">
                                 <option value="">-- None --</option>
                                 {% for u_val, u_lbl in unit_choices %}
-                                <option value="{{ u_val }}" {% if d.item.unit == u_val %}selected{% endif %}>{{ u_lbl }}</option>
+                                <option value="{{ u_val }}" {% if d.item.unit == u_val %}selected{% endif %}>{{ u_lbl }}
+                                </option>
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-sm-6"><label class="form-label fw-medium">Price ($)</label><input type="number" step="0.01" class="form-control" name="price" value="{{ d.item.price }}" required></div>
-                        <div class="col-12"><label class="form-label fw-medium">Notes</label><textarea class="form-control" name="notes" rows="2">{{ d.item.notes }}</textarea></div>
+                        <div class="col-sm-6"><label class="form-label fw-medium">Price ($)</label><input type="number"
+                                step="0.01" class="form-control" name="price" value="{{ d.item.price }}" required></div>
+                        <div class="col-12"><label class="form-label fw-medium">Notes</label><textarea
+                                class="form-control" name="notes" rows="2">{{ d.item.notes }}</textarea></div>
                     </div>
                 </div>
                 <div class="modal-footer border-0">
@@ -1156,13 +1217,15 @@
             <div class="modal-body text-center py-4">
                 <i class="fa-solid fa-triangle-exclamation text-danger fa-3x mb-3"></i>
                 <p class="mb-0">Are you sure you want to delete <strong>{{ d.item.name }}</strong>?</p>
-                <p class="text-muted small mt-2">This will also delete all associated batches. This action cannot be undone.</p>
+                <p class="text-muted small mt-2">This will also delete all associated batches. This action cannot be
+                    undone.</p>
             </div>
             <div class="modal-footer border-0 justify-content-center">
                 <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
                 <form method="post" action="{% url 'delete_item' d.item.id %}">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-danger px-4"><i class="fa-solid fa-trash me-1"></i>Delete</button>
+                    <button type="submit" class="btn btn-danger px-4"><i
+                            class="fa-solid fa-trash me-1"></i>Delete</button>
                 </form>
             </div>
         </div>
@@ -1177,22 +1240,26 @@
             <form method="post" action="{% url 'edit_batch' batch.id %}">
                 {% csrf_token %}
                 <div class="modal-header bg-light border-0">
-                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-pen-to-square me-2 text-primary"></i> Edit Batch for {{ d.item.name }}</h5>
+                    <h5 class="modal-title fw-bold"><i class="fa-solid fa-pen-to-square me-2 text-primary"></i> Edit
+                        Batch for {{ d.item.name }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="row g-3">
                         <div class="col-sm-6">
                             <label class="form-label fw-medium">Quantity</label>
-                            <input type="number" step="0.01" class="form-control" name="quantity" value="{{ batch.quantity }}" required>
+                            <input type="number" step="0.01" class="form-control" name="quantity"
+                                value="{{ batch.quantity }}" required>
                         </div>
                         <div class="col-sm-6">
                             <label class="form-label fw-medium">Expiration Date</label>
-                            <input type="date" class="form-control" name="expiration_date" value="{% if batch.expiration_date %}{{ batch.expiration_date|date:'Y-m-d' }}{% endif %}">
+                            <input type="date" class="form-control" name="expiration_date"
+                                value="{% if batch.expiration_date %}{{ batch.expiration_date|date:'Y-m-d' }}{% endif %}">
                         </div>
                         <div class="col-sm-6">
                             <label class="form-label fw-medium">Date Received</label>
-                            <input type="date" class="form-control" name="date_received" value="{% if batch.date_received %}{{ batch.date_received|date:'Y-m-d' }}{% endif %}">
+                            <input type="date" class="form-control" name="date_received"
+                                value="{% if batch.date_received %}{{ batch.date_received|date:'Y-m-d' }}{% endif %}">
                         </div>
                         <div class="col-12">
                             <label class="form-label fw-medium">Notes</label>

@@ -3,7 +3,8 @@ from .models import Cage, BoardingType, BoardingPet
 
 @admin.register(Cage)
 class CageAdmin(admin.ModelAdmin):
-    list_display = ('name', 'get_pet_types')
+    list_display = ('name', 'clinic', 'get_pet_types')
+    list_filter = ('clinic',)
     filter_horizontal = ('pet_types',)
 
     def get_pet_types(self, obj):
@@ -12,7 +13,8 @@ class CageAdmin(admin.ModelAdmin):
 
 @admin.register(BoardingType)
 class BoardingTypeAdmin(admin.ModelAdmin):
-    list_display = ('name', 'price_per_day')
+    list_display = ('name', 'clinic', 'price_per_day')
+    list_filter = ('clinic',)
     filter_horizontal = ('cages',)
 
 @admin.register(BoardingPet)

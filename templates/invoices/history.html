@@ -1,0 +1,333 @@
+{% extends 'base.html' %}
+{% load role_tags %}
+{% block title %}History & Analytics{% endblock %}
+{% block page_title %}History{% endblock %}
+
+{% block content %}
+<style>
+    .analytics-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 20px 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
+        text-align: center;
+    }
+
+    .analytics-card .stat-value {
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .analytics-card .stat-label {
+        font-size: .75rem;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        font-weight: 600;
+    }
+
+    .analytics-card .stat-icon {
+        width: 46px;
+        height: 46px;
+        border-radius: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        margin-bottom: 10px;
+    }
+
+    .chart-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
+    }
+
+    .top-item-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .top-item-row:last-child {
+        border-bottom: none;
+    }
+
+    .top-item-name {
+        font-weight: 600;
+        color: #0f172a;
+        font-size: .88rem;
+    }
+
+    .top-item-stats {
+        text-align: right;
+    }
+
+    .top-item-stats .amount {
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .top-item-stats .qty {
+        font-size: .75rem;
+        color: #64748b;
+    }
+
+    .filter-bar {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .filter-bar input,
+    .filter-bar select {
+        border-radius: 8px;
+        border: 1.5px solid #e2e8f0;
+        padding: 6px 12px;
+        font-size: .84rem;
+    }
+</style>
+
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="h4 mb-1"><i class="fa-solid fa-chart-line me-2 text-primary"></i>History & Analytics</h2>
+        <p class="text-muted mb-0">{% if is_limited %}Today's and yesterday's transactions{% else %}Revenue tracking,
+            trends, and performance analytics{% endif %}</p>
+    </div>
+    <a href="{% url 'create_invoice' %}" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus me-1"></i> New
+        Invoice</a>
+</div>
+
+{% if not is_limited %}
+<!-- ── Analytics Cards ── -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="analytics-card">
+            <div class="stat-icon" style="background:#eff6ff;color:#1d4ed8;"><i class="fa-solid fa-dollar-sign"></i>
+            </div>
+            <div class="stat-value">${{ analytics.total_revenue|floatformat:2 }}</div>
+            <div class="stat-label">Total Revenue</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="analytics-card">
+            <div class="stat-icon" style="background:#f0fdf4;color:#16a34a;"><i class="fa-solid fa-file-invoice"></i>
+            </div>
+            <div class="stat-value">{{ analytics.invoice_count }}</div>
+            <div class="stat-label">Total Invoices</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="analytics-card">
+            <div class="stat-icon" style="background:#fef3c7;color:#d97706;"><i class="fa-solid fa-receipt"></i></div>
+            <div class="stat-value">${{ analytics.avg_ticket|floatformat:2 }}</div>
+            <div class="stat-label">Avg. Ticket</div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Charts Row ── -->
+<div class="row g-3 mb-4">
+    <div class="col-md-8">
+        <div class="chart-card">
+            <h6 class="fw-bold mb-3"><i class="fa-solid fa-chart-area me-1 text-primary"></i> Revenue Trend (Last 30
+                Days)</h6>
+            <canvas id="revenueTrendChart" height="200"></canvas>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="chart-card">
+            <h6 class="fw-bold mb-3"><i class="fa-solid fa-chart-pie me-1 text-primary"></i> By Source</h6>
+            <canvas id="sourceChart" height="200"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- ── Top Selling Items ── -->
+{% if analytics.top_items %}
+<div class="chart-card mb-4">
+    <h6 class="fw-bold mb-3"><i class="fa-solid fa-trophy me-1 text-warning"></i> Top Selling Items</h6>
+    {% for item in analytics.top_items %}
+    <div class="top-item-row">
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-primary bg-opacity-10 text-primary rounded-pill"
+                style="width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;font-size:.75rem;">{{
+                forloop.counter }}</span>
+            <span class="top-item-name">{{ item.name }}</span>
+        </div>
+        <div class="top-item-stats">
+            <span class="amount">${{ item.total_revenue|floatformat:2 }}</span>
+            <span class="qty">{{ item.total_qty }} sold</span>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endif %}
+
+<!-- ── Filters ── -->
+<form method="get" class="filter-bar">
+    {% if not is_limited %}
+    <input type="date" name="from" value="{{ date_from }}" class="form-control form-control-sm" style="max-width:160px;"
+        placeholder="From">
+    <input type="date" name="to" value="{{ date_to }}" class="form-control form-control-sm" style="max-width:160px;"
+        placeholder="To">
+    {% endif %}
+    <div style="position:relative;flex:1;min-width:180px;max-width:300px;">
+        <i class="fa-solid fa-magnifying-glass"
+            style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:.85rem;"></i>
+        <input type="text" name="q" class="form-control form-control-sm" value="{{ search }}"
+            placeholder="Search ref# or customer..." style="padding-left:36px;">
+    </div>
+    <select name="source" class="form-select form-select-sm" style="max-width:180px;" onchange="this.form.submit()">
+        <option value="">All Sources</option>
+        {% for val, label in source_choices %}
+        <option value="{{ val }}" {% if source_filter == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+    </select>
+    {% if not is_limited %}
+    <select name="sort" class="form-select form-select-sm" style="max-width:180px;" onchange="this.form.submit()">
+        <option value="-created_at" {% if sort == '-created_at' %}selected{% endif %}>Newest First</option>
+        <option value="created_at" {% if sort == 'created_at' %}selected{% endif %}>Oldest First</option>
+        <option value="-total_amount" {% if sort == '-total_amount' %}selected{% endif %}>Highest Amount</option>
+        <option value="total_amount" {% if sort == 'total_amount' %}selected{% endif %}>Lowest Amount</option>
+    </select>
+    {% endif %}
+    <button class="btn btn-primary btn-sm px-3"><i class="fa-solid fa-filter me-1"></i> Filter</button>
+    {% if search or source_filter or date_from or date_to %}
+    <a href="{% url 'history' %}" class="btn btn-outline-secondary btn-sm px-3"><i class="fa-solid fa-xmark me-1"></i>
+        Clear</a>
+    {% endif %}
+</form>
+
+<!-- ── Invoices Table ── -->
+<div class="card shadow-sm border-0">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="bg-light">
+                <tr>
+                    <th>Reference</th>
+                    <th>Customer</th>
+                    <th>Source</th>
+                    <th>Created By</th>
+                    <th class="text-end">Amount</th>
+                    <th>Date</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inv in page %}
+                <tr>
+                    <td><a href="{% url 'invoice_detail' inv.id %}" class="fw-bold text-decoration-none">INV-{{
+                            inv.reference }}</a></td>
+                    <td>{{ inv.customer_name }}</td>
+                    <td><span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-2"
+                            style="font-size:.75rem">{{ inv.get_source_display }}</span></td>
+                    <td class="text-muted">{{ inv.creator_name }}</td>
+                    <td class="text-end fw-bold">${{ inv.total_amount }}</td>
+                    <td class="text-muted" style="font-size:.85rem">{{ inv.created_at|date:"d M Y, h:i A" }}</td>
+                    <td class="text-end">
+                        <a href="{% url 'invoice_detail' inv.id %}" class="btn btn-sm btn-outline-primary"><i
+                                class="fa-solid fa-eye"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center py-5 text-muted"><i
+                            class="fa-solid fa-file-invoice fa-2x mb-2 opacity-25 d-block"></i>No transactions found
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if page.paginator.num_pages > 1 %}
+    <div class="card-footer bg-white py-3 border-0">
+        <nav>
+            <ul class="pagination pagination-sm justify-content-center mb-0">
+                {% if page.has_previous %}<li class="page-item"><a class="page-link"
+                        href="?q={{ search }}&source={{ source_filter }}&sort={{ sort }}&from={{ date_from }}&to={{ date_to }}&page={{ page.previous_page_number }}">Prev</a>
+                </li>{% endif %}
+                {% for p in page.paginator.page_range %}
+                <li class="page-item {% if p == page.number %}active{% endif %}"><a class="page-link"
+                        href="?q={{ search }}&source={{ source_filter }}&sort={{ sort }}&from={{ date_from }}&to={{ date_to }}&page={{ p }}">{{
+                        p }}</a></li>
+                {% endfor %}
+                {% if page.has_next %}<li class="page-item"><a class="page-link"
+                        href="?q={{ search }}&source={{ source_filter }}&sort={{ sort }}&from={{ date_from }}&to={{ date_to }}&page={{ page.next_page_number }}">Next</a>
+                </li>{% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+{% if not is_limited %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // Revenue Trend
+        const dailyLabels = {{ analytics.daily_labels| safe
+    }};
+    const dailyData = {{ analytics.daily_data| safe }};
+    new Chart(document.getElementById('revenueTrendChart'), {
+        type: 'line',
+        data: {
+            labels: dailyLabels,
+            datasets: [{
+                label: 'Revenue ($)',
+                data: dailyData,
+                borderColor: '#1d4ed8',
+                backgroundColor: 'rgba(29,78,216,0.08)',
+                fill: true,
+                tension: 0.4,
+                borderWidth: 2.5,
+                pointRadius: 3,
+                pointBackgroundColor: '#1d4ed8',
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { callback: v => '$' + v } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+
+    // Source Donut
+    const sourceLabels = {{ analytics.source_labels| safe }};
+    const sourceData = {{ analytics.source_data| safe }};
+    const colors = ['#1d4ed8', '#16a34a', '#d97706', '#dc2626', '#7c3aed', '#0891b2'];
+    new Chart(document.getElementById('sourceChart'), {
+        type: 'doughnut',
+        data: {
+            labels: sourceLabels,
+            datasets: [{
+                data: sourceData,
+                backgroundColor: colors.slice(0, sourceLabels.length),
+                borderWidth: 0,
+                hoverOffset: 8,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 12, font: { size: 11 } } }
+            },
+            cutout: '65%',
+        }
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

@@ -1,18 +1,27 @@
 from django.db import models
 from django.utils import timezone
 from owners.models import Pet, PetType
+from clinics.models import Clinic
 
 class Cage(models.Model):
-    name = models.CharField(max_length=50, unique=True)
+    clinic = models.ForeignKey(Clinic, on_delete=models.CASCADE, related_name='cages')
+    name = models.CharField(max_length=50)
     pet_types = models.ManyToManyField(PetType, related_name='cages', blank=True)
+
+    class Meta:
+        unique_together = ('clinic', 'name')
 
     def __str__(self):
         return self.name
 
 class BoardingType(models.Model):
-    name = models.CharField(max_length=100, unique=True)
+    clinic = models.ForeignKey(Clinic, on_delete=models.CASCADE, related_name='boarding_types')
+    name = models.CharField(max_length=100)
     cages = models.ManyToManyField(Cage, related_name='boarding_types')
     price_per_day = models.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        unique_together = ('clinic', 'name')
 
     def __str__(self):
         return f"{self.name} - ${self.price_per_day}/day"
@@ -76,8 +85,10 @@ class BoardingPet(models.Model):
         if not self.checked_in_by:
             return None
         u = self.checked_in_by
-        if hasattr(u, 'adminprofile'):
-            return u.adminprofile.name
+        if hasattr(u, 'siteownerprofile'):
+            return u.siteownerprofile.name
+        if hasattr(u, 'clinicownerprofile'):
+            return u.clinicownerprofile.name
         if hasattr(u, 'doctorprofile'):
             return u.doctorprofile.name
         if hasattr(u, 'petshopprofile'):
@@ -89,8 +100,10 @@ class BoardingPet(models.Model):
         if not self.checked_out_by:
             return None
         u = self.checked_out_by
-        if hasattr(u, 'adminprofile'):
-            return u.adminprofile.name
+        if hasattr(u, 'siteownerprofile'):
+            return u.siteownerprofile.name
+        if hasattr(u, 'clinicownerprofile'):
+            return u.clinicownerprofile.name
         if hasattr(u, 'doctorprofile'):
             return u.doctorprofile.name
         if hasattr(u, 'petshopprofile'):

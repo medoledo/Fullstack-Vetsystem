@@ -1,0 +1,281 @@
+{% extends 'base.html' %}
+{% load role_tags %}
+{% block title %}Manage Clinics{% endblock %}
+{% block page_title %}Manage Clinics{% endblock %}
+
+{% block content %}
+<style>
+    .clinic-manage-card {
+        background: #fff;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
+        transition: transform .2s, box-shadow .2s;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .clinic-manage-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #6366f1, #818cf8);
+        border-radius: 14px 14px 0 0;
+    }
+
+    .clinic-manage-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, .08);
+    }
+
+    .clinic-manage-card h5 {
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 4px;
+    }
+
+    .clinic-manage-card .meta-row {
+        font-size: .82rem;
+        color: #64748b;
+        margin-bottom: 2px;
+    }
+
+    .clinic-manage-card .meta-row i {
+        width: 16px;
+        text-align: center;
+        margin-right: 6px;
+    }
+
+    .clinic-stats-row {
+        display: flex;
+        gap: 20px;
+        margin-top: 14px;
+        padding-top: 14px;
+        border-top: 1px solid #f1f5f9;
+    }
+
+    .clinic-stats-row .stat-block {
+        text-align: center;
+    }
+
+    .clinic-stats-row .stat-block .num {
+        font-size: 1.3rem;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .clinic-stats-row .stat-block .lbl {
+        font-size: .7rem;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+    }
+
+    .clinics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 20px;
+    }
+
+    @media (max-width: 767.98px) {
+        .clinics-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<!-- Page Header -->
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="h4 mb-1">Clinics</h2>
+        <p class="text-muted mb-0">Manage all registered veterinary clinics on the platform</p>
+    </div>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addClinicModal">
+        <i class="fa-solid fa-plus me-2"></i> Add Clinic
+    </button>
+</div>
+
+<!-- Clinics Grid -->
+<div class="clinics-grid">
+    {% for c in clinics %}
+    <div class="clinic-manage-card">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+                <h5>{{ c.name }}</h5>
+                {% if c.phone %}
+                <div class="meta-row"><i class="fa-solid fa-phone"></i> {{ c.phone }}</div>
+                {% endif %}
+                {% if c.address %}
+                <div class="meta-row"><i class="fa-solid fa-location-dot"></i> {{ c.address }}</div>
+                {% endif %}
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                {% if c.is_active %}
+                <span class="badge bg-success rounded-pill px-2" style="font-size:.7rem">Active</span>
+                {% else %}
+                <span class="badge bg-secondary rounded-pill px-2" style="font-size:.7rem">Inactive</span>
+                {% endif %}
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-link text-muted p-0" type="button" data-bs-toggle="dropdown">
+                        <i class="fa-solid fa-ellipsis-vertical fs-5"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                        <li>
+                            <button type="button" class="dropdown-item edit-clinic-btn" data-bs-toggle="modal"
+                                data-bs-target="#editClinicModal" data-id="{{ c.id }}" data-name="{{ c.name }}"
+                                data-phone="{{ c.phone }}" data-address="{{ c.address }}"
+                                data-active="{% if c.is_active %}on{% endif %}">
+                                <i class="fa-solid fa-pen-to-square me-2 text-warning"></i> Edit
+                            </button>
+                        </li>
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
+                        <li>
+                            <form method="post" action="{% url 'delete_clinic' c.id %}"
+                                onsubmit="return confirm('⚠️ DELETE CLINIC: This will permanently remove {{ c.name }} and ALL of its data (owners, pets, visits, inventory, etc). This cannot be undone. Are you sure?');">
+                                {% csrf_token %}
+                                <button type="submit" class="dropdown-item text-danger">
+                                    <i class="fa-solid fa-trash me-2"></i> Delete Clinic
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="clinic-stats-row">
+            <div class="stat-block">
+                <div class="num">{{ c.owner_count }}</div>
+                <div class="lbl">Owners</div>
+            </div>
+            <div class="stat-block">
+                <div class="num">{{ c.pet_count }}</div>
+                <div class="lbl">Pets</div>
+            </div>
+            <div class="stat-block">
+                <div class="num">{{ c.staff_count }}</div>
+                <div class="lbl">Staff</div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="text-center py-5 text-muted">
+        <i class="fa-solid fa-building fs-1 mb-3 d-block opacity-25"></i>
+        <p class="mb-2">No clinics registered yet</p>
+        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addClinicModal">
+            <i class="fa-solid fa-plus me-1"></i> Create First Clinic
+        </button>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Add Clinic Modal -->
+<div class="modal fade" id="addClinicModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title fw-bold">Create New Clinic</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form method="post" action="{% url 'add_clinic' %}" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label text-muted small fw-bold mb-1">CLINIC NAME *</label>
+                            <input type="text" name="name" class="form-control" placeholder="e.g. Queen Center"
+                                required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small fw-bold mb-1">PHONE NUMBER</label>
+                            <input type="text" name="phone" class="form-control" placeholder="e.g. 01234567890">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small fw-bold mb-1">LOGO</label>
+                            <input type="file" name="logo" class="form-control" accept="image/*">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label text-muted small fw-bold mb-1">ADDRESS</label>
+                            <input type="text" name="address" class="form-control" placeholder="Full address">
+                        </div>
+                    </div>
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary py-2 fw-medium shadow-sm">
+                            <i class="fa-solid fa-building me-1"></i> Create Clinic
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Clinic Modal -->
+<div class="modal fade" id="editClinicModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title fw-bold">Edit Clinic</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form method="post" id="editClinicForm" action="" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label text-muted small fw-bold mb-1">CLINIC NAME *</label>
+                            <input type="text" name="name" class="form-control" id="editClinicName" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small fw-bold mb-1">PHONE NUMBER</label>
+                            <input type="text" name="phone" class="form-control" id="editClinicPhone">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small fw-bold mb-1">LOGO (optional update)</label>
+                            <input type="file" name="logo" class="form-control" accept="image/*">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label text-muted small fw-bold mb-1">ADDRESS</label>
+                            <input type="text" name="address" class="form-control" id="editClinicAddress">
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="is_active" id="editClinicActive">
+                                <label class="form-check-label" for="editClinicActive">Clinic is active</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-warning py-2 fw-medium shadow-sm">
+                            <i class="fa-solid fa-floppy-disk me-1"></i> Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const baseEditUrl = "{% url 'edit_clinic' 0 %}";
+
+        document.querySelectorAll('.edit-clinic-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-id');
+                document.getElementById('editClinicForm').action = baseEditUrl.replace('0', id);
+                document.getElementById('editClinicName').value = btn.getAttribute('data-name') || '';
+                document.getElementById('editClinicPhone').value = btn.getAttribute('data-phone') || '';
+                document.getElementById('editClinicAddress').value = btn.getAttribute('data-address') || '';
+                document.getElementById('editClinicActive').checked = btn.getAttribute('data-active') === 'on';
+            });
+        });
+    });
+</script>
+{% endblock %}

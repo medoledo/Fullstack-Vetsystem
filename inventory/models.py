@@ -2,10 +2,12 @@ from django.db import models
 from django.utils import timezone
 from datetime import timedelta, date
 from django.db.models import Sum, Min
+from clinics.models import Clinic
 
 
 class InventoryPreference(models.Model):
-    """Singleton — one row only. Holds clinic-wide inventory settings."""
+    """Per-clinic inventory settings. One row per clinic."""
+    clinic = models.OneToOneField(Clinic, on_delete=models.CASCADE, related_name='inventory_preferences')
     low_stock_threshold = models.PositiveIntegerField(
         default=10,
         help_text="Show a low-stock warning when total quantity is at or below this number."
@@ -19,24 +21,30 @@ class InventoryPreference(models.Model):
         verbose_name = "Inventory Preference"
         verbose_name_plural = "Inventory Preferences"
 
-    def save(self, *args, **kwargs):
-        self.pk = 1
-        super().save(*args, **kwargs)
-
-    def delete(self, *args, **kwargs):
-        pass  # Prevent deletion
-
     @classmethod
-    def get(cls):
-        obj, _ = cls.objects.get_or_create(pk=1)
+    def get_for_clinic(cls, clinic):
+        obj, _ = cls.objects.get_or_create(clinic=clinic)
         return obj
 
     def __str__(self):
-        return f"Prefs (low≤{self.low_stock_threshold}, expiry warning {self.expiry_warning_days}d)"
+        return f"Prefs for {self.clinic.name} (low≤{self.low_stock_threshold}, expiry warning {self.expiry_warning_days}d)"
+
+
+INVENTORY_TYPE_CHOICES = [
+    ('clinic', 'Clinic'),
+    ('petshop', 'Petshop'),
+]
 
 
 class Category(models.Model):
-    name = models.CharField(max_length=100, unique=True)
+    clinic = models.ForeignKey(Clinic, on_delete=models.CASCADE, related_name='inventory_categories')
+    name = models.CharField(max_length=100)
+    inventory_type = models.CharField(
+        max_length=10,
+        choices=INVENTORY_TYPE_CHOICES,
+        default='clinic',
+        help_text="Whether this category belongs to the clinic or petshop inventory."
+    )
     is_infinite = models.BooleanField(
         default=False,
         help_text="If enabled, items in this category have unlimited quantity and no expiry tracking."
@@ -45,9 +53,10 @@ class Category(models.Model):
     class Meta:
         verbose_name_plural = "Categories"
         ordering = ['name']
+        unique_together = ('clinic', 'name', 'inventory_type')
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.get_inventory_type_display()})"
 
 
 UNIT_CHOICES = [
@@ -72,6 +81,7 @@ UNIT_CHOICES = [
 
 class InventoryItem(models.Model):
     """Represents a product type. Stock is tracked via InventoryBatch records."""
+    clinic = models.ForeignKey(Clinic, on_delete=models.CASCADE, related_name='inventory_items')
     name = models.CharField(max_length=200)
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name='items')
     unit = models.CharField(max_length=50, choices=UNIT_CHOICES, null=True, blank=True, help_text="Select a unit")
@@ -109,7 +119,7 @@ class InventoryItem(models.Model):
         total = self.total_quantity
         if total is None:
             return False
-        prefs = InventoryPreference.get()
+        prefs = InventoryPreference.get_for_clinic(self.clinic)
         return total <= prefs.low_stock_threshold
 
     @property
@@ -123,7 +133,7 @@ class InventoryItem(models.Model):
         today = timezone.now().date()
         if nearest < today:
             return 'expired'
-        prefs = InventoryPreference.get()
+        prefs = InventoryPreference.get_for_clinic(self.clinic)
         if nearest <= today + timedelta(days=prefs.expiry_warning_days):
             return 'warning'
         return 'ok'
@@ -178,7 +188,7 @@ class InventoryBatch(models.Model):
         today = timezone.now().date()
         if self.expiration_date < today:
             return 'expired'
-        prefs = InventoryPreference.get()
+        prefs = InventoryPreference.get_for_clinic(self.item.clinic)
         if self.expiration_date <= today + timedelta(days=prefs.expiry_warning_days):
             return 'warning'
         return 'ok'

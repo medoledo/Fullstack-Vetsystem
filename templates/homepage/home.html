@@ -1,412 +1,272 @@
 {% extends 'base.html' %}
-{% load static %}
 {% load role_tags %}
-{% block title %}Dashboard | Queen Center{% endblock %}
+{% block title %}Dashboard{% endblock %}
 {% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
 <style>
-    /* ── Stat Cards ─────────────────────────────────────────── */
-    .stat-cards-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 16px;
-        margin-bottom: 28px;
-    }
+    .stat-cards-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:16px; margin-bottom:28px; }
+    .stat-card { background:#fff; border-radius:14px; border:1px solid #e2e8f0; padding:22px 20px; display:flex; flex-direction:column; gap:10px; box-shadow:0 1px 3px rgba(0,0,0,.05); transition:transform .2s,box-shadow .2s; position:relative; overflow:hidden; }
+    .stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; border-radius:14px 14px 0 0; }
+    .stat-card.blue::before { background:linear-gradient(90deg,#3b82f6,#60a5fa); }
+    .stat-card.green::before { background:linear-gradient(90deg,#10b981,#34d399); }
+    .stat-card.amber::before { background:linear-gradient(90deg,#f59e0b,#fbbf24); }
+    .stat-card.purple::before { background:linear-gradient(90deg,#8b5cf6,#a78bfa); }
+    .stat-card.red::before { background:linear-gradient(90deg,#ef4444,#f87171); }
+    .stat-card.teal::before { background:linear-gradient(90deg,#0d9488,#2dd4bf); }
+    .stat-card.indigo::before { background:linear-gradient(90deg,#6366f1,#818cf8); }
+    .stat-card.emerald::before { background:linear-gradient(90deg,#059669,#34d399); }
+    .stat-card:hover { transform:translateY(-3px); box-shadow:0 8px 24px rgba(0,0,0,.09); }
+    .stat-card .stat-icon { width:42px; height:42px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.1rem; }
+    .stat-card .stat-value { font-size:2rem; font-weight:800; color:#0f172a; line-height:1; }
+    .stat-card .stat-label { font-size:.78rem; font-weight:600; color:#64748b; text-transform:uppercase; letter-spacing:.7px; }
+    .stat-card .stat-sub { font-size:.75rem; color:#94a3b8; margin-top:2px; }
+    .ic-blue { background:#eff6ff; color:#2563eb; } .ic-green { background:#f0fdf4; color:#16a34a; } .ic-amber { background:#fffbeb; color:#d97706; }
+    .ic-purple { background:#faf5ff; color:#7c3aed; } .ic-teal { background:#f0fdfa; color:#0d9488; } .ic-red { background:#fff5f5; color:#dc2626; }
+    .ic-indigo { background:#eef2ff; color:#4f46e5; } .ic-emerald { background:#ecfdf5; color:#059669; }
 
-    .stat-card {
-        background: #fff;
-        border-radius: 14px;
-        border: 1px solid #e2e8f0;
-        padding: 22px 20px;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
-        transition: transform .2s, box-shadow .2s;
-        position: relative;
-        overflow: hidden;
-    }
+    .chart-card { background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:24px; box-shadow:0 1px 3px rgba(0,0,0,.05); }
+    .chart-card h6 { font-weight:700; margin-bottom:16px; color:#0f172a; }
+    .section-heading { font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#94a3b8; margin:28px 0 12px; }
+    .quick-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(185px,1fr)); gap:14px; }
+    .quick-card { background:#fff; border-radius:12px; border:1px solid #e2e8f0; padding:20px 18px; text-decoration:none; display:flex; flex-direction:column; align-items:flex-start; gap:10px; transition:all .2s; color:#0f172a; box-shadow:0 1px 3px rgba(0,0,0,.04); }
+    .quick-card:hover { transform:translateY(-3px); box-shadow:0 8px 24px rgba(0,0,0,.08); border-color:#cbd5e1; color:#0f172a; }
+    .quick-card .icon-wrap { width:42px; height:42px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.1rem; }
+    .quick-card .label { font-size:.875rem; font-weight:600; margin:0; }
+    .quick-card .sublabel { font-size:.75rem; color:#94a3b8; margin:0; }
 
-    .stat-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        height: 3px;
-        border-radius: 14px 14px 0 0;
-    }
+    .greeting-banner { background:linear-gradient(135deg,#0f4c81 0%,#1a7a5e 100%); border-radius:16px; padding:30px 36px; color:white; display:flex; align-items:center; justify-content:space-between; margin-bottom:28px; position:relative; overflow:hidden; }
+    .greeting-banner::before { content:''; position:absolute; width:280px; height:280px; border-radius:50%; background:rgba(255,255,255,.05); top:-80px; right:-60px; }
+    .greeting-banner h2 { font-size:1.5rem; font-weight:700; margin-bottom:4px; }
+    .greeting-banner p { font-size:.9rem; opacity:.7; margin:0; }
+    .greeting-banner .big-paw { font-size:4rem; opacity:.35; z-index:1; }
+    .greeting-banner .role-badge { display:inline-flex; align-items:center; gap:6px; background:rgba(255,255,255,.15); border-radius:50px; padding:4px 14px; font-size:.75rem; font-weight:600; margin-bottom:10px; backdrop-filter:blur(4px); }
 
-    .stat-card.blue::before {
-        background: linear-gradient(90deg, #3b82f6, #60a5fa);
-    }
+    .clinic-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px; margin-top:16px; }
+    .clinic-card { background:#fff; border-radius:14px; border:1px solid #e2e8f0; padding:24px; box-shadow:0 1px 3px rgba(0,0,0,.05); transition:transform .2s,box-shadow .2s; }
+    .clinic-card:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,.08); }
+    .clinic-card h5 { font-weight:700; color:#0f172a; margin-bottom:12px; }
+    .clinic-card .meta { font-size:.82rem; color:#64748b; } .clinic-card .meta i { width:16px; }
+    .clinic-stat { font-size:.78rem; color:#94a3b8; } .clinic-stat strong { color:#0f172a; font-weight:700; font-size:1.1rem; }
 
-    .stat-card.green::before {
-        background: linear-gradient(90deg, #10b981, #34d399);
-    }
-
-    .stat-card.amber::before {
-        background: linear-gradient(90deg, #f59e0b, #fbbf24);
-    }
-
-    .stat-card.purple::before {
-        background: linear-gradient(90deg, #8b5cf6, #a78bfa);
-    }
-
-    .stat-card.red::before {
-        background: linear-gradient(90deg, #ef4444, #f87171);
-    }
-
-    .stat-card.teal::before {
-        background: linear-gradient(90deg, #0d9488, #2dd4bf);
-    }
-
-    .stat-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, .09);
-    }
-
-    .stat-card .stat-icon {
-        width: 42px;
-        height: 42px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.1rem;
-    }
-
-    .stat-card .stat-value {
-        font-size: 2rem;
-        font-weight: 800;
-        color: #0f172a;
-        line-height: 1;
-    }
-
-    .stat-card .stat-label {
-        font-size: 0.78rem;
-        font-weight: 600;
-        color: #64748b;
-        text-transform: uppercase;
-        letter-spacing: .7px;
-    }
-
-    .stat-card .stat-sub {
-        font-size: 0.75rem;
-        color: #94a3b8;
-        margin-top: 2px;
-    }
-
-    /* ── Quick links ────────────────────────────────────────── */
-    .quick-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
-        gap: 14px;
-    }
-
-    .quick-card {
-        background: #fff;
-        border-radius: 12px;
-        border: 1px solid #e2e8f0;
-        padding: 20px 18px;
-        text-decoration: none;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-        transition: all .2s;
-        color: #0f172a;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, .04);
-    }
-
-    .quick-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, .08);
-        border-color: #cbd5e1;
-        color: #0f172a;
-    }
-
-    .quick-card .icon-wrap {
-        width: 42px;
-        height: 42px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.1rem;
-    }
-
-    .quick-card .label {
-        font-size: .875rem;
-        font-weight: 600;
-        margin: 0;
-    }
-
-    .quick-card .sublabel {
-        font-size: .75rem;
-        color: #94a3b8;
-        margin: 0;
-    }
-
-    /* color helpers */
-    .ic-blue {
-        background: #eff6ff;
-        color: #2563eb;
-    }
-
-    .ic-green {
-        background: #f0fdf4;
-        color: #16a34a;
-    }
-
-    .ic-amber {
-        background: #fffbeb;
-        color: #d97706;
-    }
-
-    .ic-purple {
-        background: #faf5ff;
-        color: #7c3aed;
-    }
-
-    .ic-teal {
-        background: #f0fdfa;
-        color: #0d9488;
-    }
-
-    .ic-red {
-        background: #fff5f5;
-        color: #dc2626;
-    }
-
-    .section-heading {
-        font-size: .7rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        color: #94a3b8;
-        margin: 28px 0 12px;
-    }
-
-    /* ── Greeting banner ────────────────────────────────────── */
-    .greeting-banner {
-        background: linear-gradient(135deg, #0f4c81 0%, #1a7a5e 100%);
-        border-radius: 16px;
-        padding: 30px 36px;
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 28px;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .greeting-banner::before {
-        content: '';
-        position: absolute;
-        width: 280px;
-        height: 280px;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, .05);
-        top: -80px;
-        right: -60px;
-    }
-
-    .greeting-banner h2 {
-        font-size: 1.5rem;
-        font-weight: 700;
-        margin-bottom: 4px;
-    }
-
-    .greeting-banner p {
-        font-size: .9rem;
-        opacity: .7;
-        margin: 0;
-    }
-
-    .greeting-banner .big-paw {
-        font-size: 4rem;
-        opacity: .35;
-        z-index: 1;
-    }
-
-    .greeting-banner .role-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        background: rgba(255, 255, 255, .15);
-        border-radius: 50px;
-        padding: 4px 14px;
-        font-size: .75rem;
-        font-weight: 600;
-        margin-bottom: 10px;
-        backdrop-filter: blur(4px);
-    }
-
-    @media (max-width: 767.98px) {
-        .greeting-banner {
-            flex-direction: column;
-            align-items: flex-start;
-            padding: 20px;
-            gap: 4px;
-        }
-
-        .greeting-banner .big-paw {
-            display: none;
-        }
-
-        .greeting-banner h2 {
-            font-size: 1.2rem;
-        }
-
-        .quick-grid {
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-        }
-
-        .stat-cards-grid {
-            grid-template-columns: repeat(2, 1fr);
-        }
+    @media (max-width:767.98px) {
+        .greeting-banner { flex-direction:column; align-items:flex-start; padding:20px; gap:4px; }
+        .greeting-banner .big-paw { display:none; }
+        .greeting-banner h2 { font-size:1.2rem; }
+        .quick-grid { grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); }
+        .stat-cards-grid { grid-template-columns:repeat(2,1fr); }
     }
 </style>
 
 <!-- Greeting banner -->
 <div class="greeting-banner">
     <div style="z-index:1">
-        {% if request.user|is_admin %}
-        <div class="role-badge">⚙️ Administrator</div>
-        {% elif request.user|is_doctor %}
-        <div class="role-badge">🩺 Doctor</div>
-        {% elif request.user|is_petshop %}
-        <div class="role-badge">🛒 Petshop</div>
-        {% endif %}
+        {% if request.user|is_siteowner %}<div class="role-badge">🌐 Site Owner</div>
+        {% elif request.user|is_clinic_owner %}<div class="role-badge">⚙️ Clinic Owner</div>
+        {% elif request.user|is_doctor %}<div class="role-badge">🩺 Doctor</div>
+        {% elif request.user|is_petshop %}<div class="role-badge">🛒 Petshop</div>{% endif %}
         <h2>Welcome back, {{ request.user|profile_name }} 👋</h2>
-        <p>Here's what's happening at Queen Center today.</p>
+        {% if request.user|is_siteowner %}<p>Here's your platform overview across all clinics.</p>
+        {% elif request.clinic %}<p>Here's what's happening at {{ request.clinic.name }} today.</p>{% endif %}
     </div>
     <div class="big-paw">🐾</div>
 </div>
 
-{% if request.user|is_admin or request.user|is_doctor %}
-<!-- Live stat cards -->
+{% if request.user|is_siteowner %}
+<!-- ═══ SITEOWNER DASHBOARD ═══ -->
+<div class="stat-cards-grid">
+    <div class="stat-card indigo">
+        <div class="stat-icon ic-indigo"><i class="fa-solid fa-building"></i></div>
+        <div><div class="stat-value">{{ total_clinics|default:"0" }}</div><div class="stat-label">Clinics</div><div class="stat-sub">{{ active_clinics|default:"0" }} active</div></div>
+    </div>
+    <a href="{% url 'add_user' %}" class="stat-card blue text-decoration-none">
+        <div class="stat-icon ic-blue"><i class="fa-solid fa-user-group"></i></div>
+        <div><div class="stat-value">{{ total_users|default:"0" }}</div><div class="stat-label">Users</div><div class="stat-sub">Across all clinics</div></div>
+    </a>
+    <div class="stat-card green">
+        <div class="stat-icon ic-green"><i class="fa-solid fa-users"></i></div>
+        <div><div class="stat-value">{{ total_owners|default:"0" }}</div><div class="stat-label">Owners</div></div>
+    </div>
+    <div class="stat-card teal">
+        <div class="stat-icon ic-teal"><i class="fa-solid fa-paw"></i></div>
+        <div><div class="stat-value">{{ total_pets|default:"0" }}</div><div class="stat-label">Pets</div></div>
+    </div>
+    <div class="stat-card emerald">
+        <div class="stat-icon ic-emerald"><i class="fa-solid fa-dollar-sign"></i></div>
+        <div><div class="stat-value">${{ total_revenue|floatformat:0 }}</div><div class="stat-label">Total Revenue</div><div class="stat-sub">{{ total_invoices }} invoices</div></div>
+    </div>
+</div>
+
+<div class="section-heading">🏥 Registered Clinics</div>
+<div class="clinic-grid">
+    {% for c in clinics %}
+    <div class="clinic-card">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h5>{{ c.name }}</h5>
+                <div class="meta d-flex flex-column gap-1">
+                    {% if c.phone %}<div><i class="fa-solid fa-phone"></i> {{ c.phone }}</div>{% endif %}
+                    {% if c.address %}<div><i class="fa-solid fa-location-dot"></i> {{ c.address }}</div>{% endif %}
+                </div>
+            </div>
+            {% if c.is_active %}<span class="badge bg-success rounded-pill" style="font-size:.7rem">Active</span>
+            {% else %}<span class="badge bg-secondary rounded-pill" style="font-size:.7rem">Inactive</span>{% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <div class="text-muted">No clinics registered yet. <a href="{% url 'manage_clinics' %}">Create one</a></div>
+    {% endfor %}
+</div>
+
+<div class="section-heading">🔗 Quick Access</div>
+<div class="quick-grid">
+    <a href="{% url 'manage_clinics' %}" class="quick-card"><div class="icon-wrap ic-indigo"><i class="fa-solid fa-building"></i></div><div><p class="label">Manage Clinics</p><p class="sublabel">Add, edit, remove</p></div></a>
+    <a href="{% url 'add_user' %}" class="quick-card"><div class="icon-wrap ic-red"><i class="fa-solid fa-user-gear"></i></div><div><p class="label">Manage Users</p><p class="sublabel">All accounts</p></div></a>
+    <a href="{% url 'history' %}" class="quick-card"><div class="icon-wrap ic-emerald"><i class="fa-solid fa-chart-line"></i></div><div><p class="label">History & Analytics</p><p class="sublabel">Revenue overview</p></div></a>
+</div>
+
+{% elif request.user|is_clinic_owner or request.user|is_doctor %}
+<!-- ═══ CLINIC STAFF DASHBOARD ═══ -->
 <div class="stat-cards-grid">
     <a href="{% url 'owners' %}" class="stat-card blue text-decoration-none">
         <div class="stat-icon ic-blue"><i class="fa-solid fa-users"></i></div>
-        <div>
-            <div class="stat-value">{{ total_owners|default:"—" }}</div>
-            <div class="stat-label">Owners</div>
-            <div class="stat-sub">Registered clients</div>
-        </div>
+        <div><div class="stat-value">{{ total_owners|default:"—" }}</div><div class="stat-label">Owners</div><div class="stat-sub">+{{ new_owners_this_month }} this month</div></div>
     </a>
     <a href="{% url 'owners' %}" class="stat-card green text-decoration-none">
         <div class="stat-icon ic-green"><i class="fa-solid fa-paw"></i></div>
-        <div>
-            <div class="stat-value">{{ total_pets|default:"—" }}</div>
-            <div class="stat-label">Pets</div>
-            <div class="stat-sub">Across all clients</div>
-        </div>
+        <div><div class="stat-value">{{ total_pets|default:"—" }}</div><div class="stat-label">Pets</div></div>
     </a>
     <a href="{% url 'expected_visits' %}" class="stat-card amber text-decoration-none">
         <div class="stat-icon ic-amber"><i class="fa-solid fa-stethoscope"></i></div>
-        <div>
-            <div class="stat-value">{{ total_visits|default:"—" }}</div>
-            <div class="stat-label">Visits</div>
-            <div class="stat-sub">Total recorded</div>
-        </div>
+        <div><div class="stat-value">{{ total_visits|default:"—" }}</div><div class="stat-label">Total Visits</div><div class="stat-sub">{{ visits_this_month }} this month</div></div>
     </a>
     <a href="{% url 'boarding_dashboard' %}" class="stat-card teal text-decoration-none">
         <div class="stat-icon ic-teal"><i class="fa-solid fa-bed"></i></div>
-        <div>
-            <div class="stat-value">{{ active_boardings|default:"0" }}</div>
-            <div class="stat-label">Active Boardings</div>
-            <div class="stat-sub">Currently checked in</div>
-        </div>
+        <div><div class="stat-value">{{ active_boardings|default:"0" }}</div><div class="stat-label">Active Boardings</div></div>
     </a>
     <a href="{% url 'expected_visits' %}" class="stat-card purple text-decoration-none">
         <div class="stat-icon ic-purple"><i class="fa-solid fa-calendar-check"></i></div>
-        <div>
-            <div class="stat-value">{{ today_visits_count|default:"0" }}</div>
-            <div class="stat-label">Due Today</div>
-            <div class="stat-sub">Expected visits</div>
-        </div>
+        <div><div class="stat-value">{{ today_visits_count|default:"0" }}</div><div class="stat-label">Due Today</div></div>
     </a>
-    <a href="{% url 'todays_birthdays' %}" class="stat-card red text-decoration-none" style="--accent-color: #ec4899;">
-        <div class="stat-icon" style="background: #fdf2f8; color: #db2777;"><i class="fa-solid fa-cake-candles"></i>
-        </div>
-        <div>
-            <div class="stat-value">{{ birthday_count|default:"0" }}</div>
-            <div class="stat-label">Birthdays</div>
-            <div class="stat-sub">Celebrating today</div>
-        </div>
+    <a href="{% url 'todays_birthdays' %}" class="stat-card red text-decoration-none" style="--accent-color:#ec4899;">
+        <div class="stat-icon" style="background:#fdf2f8;color:#db2777;"><i class="fa-solid fa-cake-candles"></i></div>
+        <div><div class="stat-value">{{ birthday_count|default:"0" }}</div><div class="stat-label">Birthdays</div><div class="stat-sub">Celebrating today</div></div>
     </a>
-    {% if request.user|is_admin %}
+    {% if request.user|is_clinic_owner %}
+    <a href="{% url 'history' %}" class="stat-card emerald text-decoration-none">
+        <div class="stat-icon ic-emerald"><i class="fa-solid fa-dollar-sign"></i></div>
+        <div><div class="stat-value">${{ revenue_this_month|floatformat:0 }}</div><div class="stat-label">Revenue</div><div class="stat-sub">{{ invoices_this_month }} invoices this month</div></div>
+    </a>
     <a href="{% url 'tasks_dashboard' %}" class="stat-card red text-decoration-none">
         <div class="stat-icon ic-red"><i class="fa-solid fa-clipboard-list"></i></div>
-        <div>
-            <div class="stat-value">{{ open_tasks|default:"0" }}</div>
-            <div class="stat-label">Open Tasks</div>
-            <div class="stat-sub">Pending completion</div>
-        </div>
+        <div><div class="stat-value">{{ open_tasks|default:"0" }}</div><div class="stat-label">Open Tasks</div></div>
     </a>
     {% endif %}
+</div>
+
+<!-- ── Analytics Charts ── -->
+<div class="section-heading">📊 Analytics</div>
+<div class="row g-3 mb-4">
+    <div class="col-md-8">
+        <div class="chart-card">
+            <h6><i class="fa-solid fa-chart-area me-2 text-primary"></i> Daily Visits (Last 14 Days)</h6>
+            <canvas id="dailyVisitsChart" height="200"></canvas>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="chart-card">
+            <h6><i class="fa-solid fa-chart-bar me-2 text-success"></i> New Owners (6 Months)</h6>
+            <canvas id="ownersChart" height="200"></canvas>
+        </div>
+    </div>
+</div>
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="chart-card">
+            <h6><i class="fa-solid fa-chart-column me-2 text-warning"></i> Visits by Month</h6>
+            <canvas id="monthlyVisitsChart" height="200"></canvas>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="chart-card">
+            <h6><i class="fa-solid fa-sack-dollar me-2 text-success"></i> Revenue by Month</h6>
+            <canvas id="revenueChart" height="200"></canvas>
+        </div>
+    </div>
 </div>
 
 <!-- Quick Navigation -->
 <div class="section-heading">🔗 Quick Access</div>
 <div class="quick-grid">
-    <a href="{% url 'owners' %}" class="quick-card">
-        <div class="icon-wrap ic-blue"><i class="fa-solid fa-users"></i></div>
-        <div>
-            <p class="label">Owners & Pets</p>
-            <p class="sublabel">Browse all clients</p>
-        </div>
-    </a>
-    <a href="{% url 'expected_visits' %}" class="quick-card">
-        <div class="icon-wrap ic-amber"><i class="fa-solid fa-list-check"></i></div>
-        <div>
-            <p class="label">Expected Visits</p>
-            <p class="sublabel">Today & tomorrow</p>
-        </div>
-    </a>
-    <a href="{% url 'todays_birthdays' %}" class="quick-card">
-        <div class="icon-wrap" style="background: #fdf2f8; color: #db2777;"><i class="fa-solid fa-cake-candles"></i>
-        </div>
-        <div>
-            <p class="label">Birthdays</p>
-            <p class="sublabel">Celebrate today</p>
-        </div>
-    </a>
-    <a href="{% url 'boarding_dashboard' %}" class="quick-card">
-        <div class="icon-wrap ic-teal"><i class="fa-solid fa-bed"></i></div>
-        <div>
-            <p class="label">Boarding</p>
-            <p class="sublabel">Check-in / check-out</p>
-        </div>
-    </a>
-    <a href="{% url 'tasks_dashboard' %}" class="quick-card">
-        <div class="icon-wrap ic-purple"><i class="fa-solid fa-clipboard-check"></i></div>
-        <div>
-            <p class="label">Tasks</p>
-            <p class="sublabel">Team task manager</p>
-        </div>
-    </a>
-    {% if request.user|is_admin %}
-    <a href="{% url 'add_user' %}" class="quick-card">
-        <div class="icon-wrap ic-red"><i class="fa-solid fa-user-gear"></i></div>
-        <div>
-            <p class="label">Manage Users</p>
-            <p class="sublabel">Staff accounts</p>
-        </div>
-    </a>
+    <a href="{% url 'owners' %}" class="quick-card"><div class="icon-wrap ic-blue"><i class="fa-solid fa-users"></i></div><div><p class="label">Owners & Pets</p><p class="sublabel">Browse all clients</p></div></a>
+    <a href="{% url 'expected_visits' %}" class="quick-card"><div class="icon-wrap ic-amber"><i class="fa-solid fa-list-check"></i></div><div><p class="label">Expected Visits</p><p class="sublabel">Today & tomorrow</p></div></a>
+    <a href="{% url 'create_invoice' %}" class="quick-card"><div class="icon-wrap ic-emerald"><i class="fa-solid fa-file-invoice"></i></div><div><p class="label">New Invoice</p><p class="sublabel">Create a sale</p></div></a>
+    <a href="{% url 'boarding_dashboard' %}" class="quick-card"><div class="icon-wrap ic-teal"><i class="fa-solid fa-bed"></i></div><div><p class="label">Boarding</p><p class="sublabel">Check-in / check-out</p></div></a>
+    <a href="{% url 'history' %}" class="quick-card"><div class="icon-wrap ic-purple"><i class="fa-solid fa-chart-line"></i></div><div><p class="label">History</p><p class="sublabel">Revenue analytics</p></div></a>
+    {% if request.user|is_clinic_owner %}
+    <a href="{% url 'add_user' %}" class="quick-card"><div class="icon-wrap ic-red"><i class="fa-solid fa-user-gear"></i></div><div><p class="label">Manage Users</p><p class="sublabel">Staff accounts</p></div></a>
     {% endif %}
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const monthLabels = {{ months_labels|safe }};
+    const visitsByMonth = {{ visits_by_month|safe }};
+    const ownersByMonth = {{ owners_by_month|safe }};
+    const revenueByMonth = {{ revenue_by_month|safe }};
+    const dailyLabels = {{ daily_visits_labels|safe }};
+    const dailyData = {{ daily_visits_data|safe }};
+
+    const gridColor = '#f1f5f9';
+    const commonOpts = { responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,grid:{color:gridColor}},x:{grid:{display:false}}} };
+
+    // Daily Visits
+    new Chart(document.getElementById('dailyVisitsChart'), {
+        type:'line',
+        data:{labels:dailyLabels,datasets:[{label:'Visits',data:dailyData,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.08)',fill:true,tension:.4,borderWidth:2.5,pointRadius:3,pointBackgroundColor:'#3b82f6'}]},
+        options:commonOpts
+    });
+
+    // Monthly Visits Bar
+    new Chart(document.getElementById('monthlyVisitsChart'), {
+        type:'bar',
+        data:{labels:monthLabels,datasets:[{label:'Visits',data:visitsByMonth,backgroundColor:'rgba(245,158,11,0.7)',borderRadius:6,borderSkipped:false}]},
+        options:commonOpts
+    });
+
+    // Owners Bar
+    new Chart(document.getElementById('ownersChart'), {
+        type:'bar',
+        data:{labels:monthLabels,datasets:[{label:'New Owners',data:ownersByMonth,backgroundColor:'rgba(16,185,129,0.7)',borderRadius:6,borderSkipped:false}]},
+        options:commonOpts
+    });
+
+    // Revenue Line
+    new Chart(document.getElementById('revenueChart'), {
+        type:'line',
+        data:{labels:monthLabels,datasets:[{label:'Revenue ($)',data:revenueByMonth,borderColor:'#059669',backgroundColor:'rgba(5,150,105,0.08)',fill:true,tension:.4,borderWidth:2.5,pointRadius:3,pointBackgroundColor:'#059669'}]},
+        options:{...commonOpts,scales:{...commonOpts.scales,y:{...commonOpts.scales.y,ticks:{callback:v=>'$'+v}}}}
+    });
+});
+</script>
 {% endif %}
 
 {% if request.user|is_petshop %}
-<div class="alert alert-info mt-4">
-    <i class="fa-solid fa-info-circle me-2"></i>
-    Your role is <strong>Petshop</strong>. The petshop modules are not yet active. Contact an administrator if you
-    believe this is in error.
+<!-- Petshop Dashboard -->
+<div class="stat-cards-grid">
+    <a href="{% url 'create_invoice' %}" class="stat-card emerald text-decoration-none">
+        <div class="stat-icon ic-emerald"><i class="fa-solid fa-cash-register"></i></div>
+        <div><div class="stat-value"><i class="fa-solid fa-plus" style="font-size:1.4rem"></i></div><div class="stat-label">New Sale</div><div class="stat-sub">Create invoice</div></div>
+    </a>
+    <a href="{% url 'history' %}" class="stat-card purple text-decoration-none">
+        <div class="stat-icon ic-purple"><i class="fa-solid fa-clock-rotate-left"></i></div>
+        <div><div class="stat-value"><i class="fa-solid fa-chart-line" style="font-size:1.4rem"></i></div><div class="stat-label">Sales History</div><div class="stat-sub">Today & yesterday</div></div>
+    </a>
+    <a href="{% url 'invoice_list' %}" class="stat-card blue text-decoration-none">
+        <div class="stat-icon ic-blue"><i class="fa-solid fa-file-lines"></i></div>
+        <div><div class="stat-value"><i class="fa-solid fa-list" style="font-size:1.4rem"></i></div><div class="stat-label">Invoices</div><div class="stat-sub">View all invoices</div></div>
+    </a>
 </div>
 {% endif %}
 

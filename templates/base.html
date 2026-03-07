@@ -643,9 +643,9 @@
         <!-- Brand & Toggle -->
         <div class="sidebar-brand">
             <a href="{% url 'home' %}" class="d-flex align-items-center gap-2 text-decoration-none">
-                <div class="brand-icon text-white"><i class="fa-solid fa-crown text-warning"></i></div>
+                <div class="brand-icon text-white"><i class="fa-solid fa-paw text-white"></i></div>
                 <div class="brand-text">
-                    <h4>Queen center</h4>
+                    <h4>{% if request.clinic %}{{ request.clinic.name }}{% else %}VetSystem{% endif %}</h4>
                     <small>Management System</small>
                 </div>
             </a>
@@ -663,7 +663,7 @@
         </div>
 
         <!-- VET SECTION -->
-        {% if request.user|is_admin or request.user|is_doctor %}
+        {% if request.user|is_clinic_owner or request.user|is_doctor %}
         <div class="sidebar-section">
             <div class="sidebar-section-label">Vet Management</div>
             <a href="{% url 'owners' %}" class="nav-item-sb">
@@ -678,11 +678,20 @@
             <a href="{% url 'inventory_dashboard' %}" class="nav-item-sb">
                 <i class="fa-solid fa-boxes-stacked"></i> <span class="nav-text">Inventory</span>
             </a>
+            <a href="{% url 'create_invoice' %}" class="nav-item-sb">
+                <i class="fa-solid fa-file-invoice"></i> <span class="nav-text">New Invoice</span>
+            </a>
+            <a href="{% url 'invoice_list' %}" class="nav-item-sb">
+                <i class="fa-solid fa-file-lines"></i> <span class="nav-text">Invoices</span>
+            </a>
+            <a href="{% url 'history' %}" class="nav-item-sb">
+                <i class="fa-solid fa-chart-line"></i> <span class="nav-text">History & Analytics</span>
+            </a>
         </div>
         {% endif %}
 
         <!-- DAILY MANAGEMENT SECTION -->
-        {% if request.user|is_admin or request.user|is_doctor %}
+        {% if request.user|is_clinic_owner or request.user|is_doctor %}
         <div class="sidebar-section">
             <div class="sidebar-section-label">Daily Management</div>
             <a href="{% url 'expected_visits' %}" class="nav-item-sb">
@@ -694,18 +703,35 @@
         </div>
         {% endif %}
 
-        <!-- PETSHOP SECTION -->
-        {% if request.user|is_admin or request.user|is_petshop %}
+        {% if request.user|is_clinic_owner or request.user|is_petshop %}
         <div class="sidebar-section">
             <div class="sidebar-section-label">Petshop</div>
-            <!-- Nothing till now -->
+            <a href="{% url 'create_invoice' %}" class="nav-item-sb">
+                <i class="fa-solid fa-cash-register"></i> <span class="nav-text">New Sale</span>
+            </a>
+            <a href="{% url 'history' %}" class="nav-item-sb">
+                <i class="fa-solid fa-chart-pie"></i> <span class="nav-text">Sales History</span>
+            </a>
         </div>
         {% endif %}
 
-        <!-- ADMIN SECTION -->
-        {% if request.user|is_admin %}
+        <!-- CLINIC ADMIN SECTION -->
+        {% if request.user|is_clinic_owner %}
         <div class="sidebar-section">
             <div class="sidebar-section-label">Administration</div>
+            <a href="{% url 'add_user' %}" class="nav-item-sb">
+                <i class="fa-solid fa-user-gear"></i> <span class="nav-text">Manage Users</span>
+            </a>
+        </div>
+        {% endif %}
+
+        <!-- SITE OWNER SECTION -->
+        {% if request.user|is_siteowner %}
+        <div class="sidebar-section">
+            <div class="sidebar-section-label">Platform</div>
+            <a href="{% url 'manage_clinics' %}" class="nav-item-sb">
+                <i class="fa-solid fa-building"></i> <span class="nav-text">Manage Clinics</span>
+            </a>
             <a href="{% url 'add_user' %}" class="nav-item-sb">
                 <i class="fa-solid fa-user-gear"></i> <span class="nav-text">Manage Users</span>
             </a>
@@ -715,8 +741,8 @@
         <!-- User + Logout -->
         <div class="sidebar-footer">
             <div class="user-info">
-                <div class="avatar">{{ user.username|slice:":1"|upper }}</div>
-                <div class="uname nav-text">{{ user.username }}</div>
+                <div class="avatar">{{ user|profile_name|slice:":1"|upper }}</div>
+                <div class="uname nav-text">{{ user|profile_name }}</div>
             </div>
             <a href="{% url 'logout' %}" class="logout-btn">
                 <i class="fa-solid fa-arrow-right-from-bracket"></i> <span class="nav-text">Sign Out</span>
@@ -738,7 +764,8 @@
                 <i class="fa-solid fa-bars"></i>
             </button>
             <div style="min-width:0;">
-                <div class="page-title">{% block page_title %}Queen Center{% endblock %}</div>
+                <div class="page-title">{% block page_title %}{% if request.clinic %}{{ request.clinic.name }}{% else
+                    %}VetSystem{% endif %}{% endblock %}</div>
             </div>
             <div class="topbar-right">
                 <span class="time-chip" id="clock"></span>
@@ -777,7 +804,8 @@
 
         <!-- Footer -->
         <footer>
-            Queen Center Management System &copy; 2026 — Designed by Mohammed Essam & NourEldeen Waleed
+            {% if request.clinic %}{{ request.clinic.name }}{% else %}VetSystem{% endif %} Management System &copy; 2026
+            — Designed by Mohammed Essam & NourEldeen Waleed
         </footer>
     </div>
 

@@ -10,7 +10,7 @@ from django.core.paginator import Paginator
 
 @login_required
 def pet_visits(request, pet_id):
-    pet = get_object_or_404(Pet, id=pet_id)
+    pet = get_object_or_404(Pet, id=pet_id, owner__clinic=request.clinic)
     
     if request.method == 'POST':
         visit_date = request.POST.get('visit_date')
@@ -23,8 +23,10 @@ def pet_visits(request, pet_id):
         
         try:
             doctor_name = request.user.username
-            if hasattr(request.user, 'adminprofile'):
-                doctor_name = request.user.adminprofile.name
+            if hasattr(request.user, 'siteownerprofile'):
+                doctor_name = request.user.siteownerprofile.name
+            elif hasattr(request.user, 'clinicownerprofile'):
+                doctor_name = request.user.clinicownerprofile.name
             elif hasattr(request.user, 'doctorprofile'):
                 doctor_name = request.user.doctorprofile.name
             elif hasattr(request.user, 'petshopprofile'):
@@ -44,7 +46,7 @@ def pet_visits(request, pet_id):
             
     # Pagination for pet visits
     visits_qs = pet.visits.all().order_by('-visit_date')
-    paginator = Paginator(visits_qs, 10) # 10 visits per page
+    paginator = Paginator(visits_qs, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
@@ -59,10 +61,20 @@ def pet_visits(request, pet_id):
 def expected_visits(request):
     today = timezone.localdate()
     tomorrow = today + timedelta(days=1)
+    clinic = request.clinic
     
-    # Use select_related to avoid N+1 per pet
-    today_visits = Visit.objects.filter(next_visit_date=today).select_related('pet').order_by('pet__name')
-    tomorrow_visits = Visit.objects.filter(next_visit_date=tomorrow).select_related('pet').order_by('pet__name')
+    if not clinic:
+        return render(request, 'visitspage/expected_visits.html', {
+            'today_visits': [], 'tomorrow_visits': []
+        })
+    
+    today_visits = Visit.objects.filter(
+        next_visit_date=today, pet__owner__clinic=clinic
+    ).select_related('pet').order_by('pet__name')
+    
+    tomorrow_visits = Visit.objects.filter(
+        next_visit_date=tomorrow, pet__owner__clinic=clinic
+    ).select_related('pet').order_by('pet__name')
     
     for v in today_visits:
         msg = f"السلام عليكم\nبنفكركم ان النهاردة بتاريخ {today.strftime('%Y-%m-%d')} معاد زيارة حيوانكم الاليف ( {v.pet.name} ) لمتابعه الحاله\nشكرا لكم"

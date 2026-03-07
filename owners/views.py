@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from vetlogin.decorators import admin_required, doctor_or_admin_required
+from vetlogin.decorators import admin_required, doctor_or_admin_required, is_siteowner
 from django.contrib import messages
 from django.http import HttpResponse
 from .models import Owner, Pet, PetType
@@ -17,13 +17,17 @@ from boarding.models import BoardingPet
 def api_search_owners(request):
     """AJAX endpoint for searching owners dynamically via TomSelect"""
     query = request.GET.get('q', '').strip()
-    qs = Owner.objects.all()
+    clinic = request.clinic
+    if not clinic:
+        return JsonResponse({'items': []})
+    qs = Owner.objects.filter(clinic=clinic)
     if query:
         qs = qs.filter(Q(name__icontains=query) | Q(phone_number__icontains=query))
     
-    qs = qs[:50] # Limit to 50 to ensure high performance
+    qs = qs[:50]
     results = [{'id': o.id, 'text': f"{o.name} - {o.phone_number}"} for o in qs]
     return JsonResponse({'items': results})
+
 @doctor_or_admin_required
 def api_get_owner_pets(request, owner_id):
     """AJAX endpoint to load pets belonging to a specific owner with optimized check for active boarding"""
@@ -49,8 +53,11 @@ def api_get_owner_pets(request, owner_id):
 @doctor_or_admin_required
 def owners(request):
     search_query = request.GET.get('search', '').strip()
+    clinic = request.clinic
+    if not clinic:
+        return render(request, 'ownerspage/owners.html', {'owners': [], 'page_obj': None, 'search_query': '', 'limit': '10'})
 
-    qs = Owner.objects.all().prefetch_related('pets').order_by('-joined_date', '-id')
+    qs = Owner.objects.filter(clinic=clinic).prefetch_related('pets').order_by('-joined_date', '-id')
 
     if search_query:
         qs = qs.filter(
@@ -58,13 +65,11 @@ def owners(request):
             Q(phone_number__icontains=search_query)
         )
 
-    # Pagination: dynamic page size based on user selection (default 10)
     try:
         limit = int(request.GET.get('limit', 10))
     except ValueError:
         limit = 10
         
-    # Ensure limit is one of the allowed options
     if limit not in [10, 20, 50, 100]:
         limit = 10
 
@@ -73,7 +78,7 @@ def owners(request):
     page_obj = paginator.get_page(page_number)
 
     return render(request, 'ownerspage/owners.html', {
-        'owners': page_obj,  # Pass the paginated object as 'owners' for compatibility with the existing loop
+        'owners': page_obj,
         'page_obj': page_obj,
         'search_query': search_query,
         'limit': str(limit),
@@ -85,7 +90,9 @@ def add_owner(request):
     if request.method == 'POST':
         form = OwnerForm(request.POST)
         if form.is_valid():
-            form.save()
+            owner = form.save(commit=False)
+            owner.clinic = request.clinic
+            owner.save()
             messages.success(request, 'Owner added successfully.')
         else:
             for field, errors in form.errors.items():
@@ -96,7 +103,7 @@ def add_owner(request):
 
 @doctor_or_admin_required
 def edit_owner(request, owner_id):
-    owner = get_object_or_404(Owner, id=owner_id)
+    owner = get_object_or_404(Owner, id=owner_id, clinic=request.clinic)
     if request.method == 'POST':
         form = OwnerForm(request.POST, instance=owner)
         if form.is_valid():
@@ -111,7 +118,7 @@ def edit_owner(request, owner_id):
 
 @admin_required
 def delete_owner(request, owner_id):
-    owner = get_object_or_404(Owner, id=owner_id)
+    owner = get_object_or_404(Owner, id=owner_id, clinic=request.clinic)
     if request.method == 'POST':
         owner.delete()
         messages.success(request, 'Owner deleted.')
@@ -120,18 +127,22 @@ def delete_owner(request, owner_id):
 
 @doctor_or_admin_required
 def owner_detail(request, owner_id):
-    owner = get_object_or_404(Owner, id=owner_id)
+    owner = get_object_or_404(Owner, id=owner_id, clinic=request.clinic)
     pets = owner.pets.select_related('pet_type')
-    pet_types = PetType.objects.all()
+    pet_types = PetType.objects.filter(clinic=request.clinic)
     return render(request, 'ownerspage/owner_detail.html', {'owner': owner, 'pets': pets, 'pet_types': pet_types})
 
 
 @doctor_or_admin_required
 def download_owners(request):
+    clinic = request.clinic
+    if not clinic:
+        return HttpResponse("No clinic assigned.", status=403)
+
     search_name = request.GET.get('search_name', '')
     search_number = request.GET.get('search_number', '')
 
-    qs = Owner.objects.all().select_related()
+    qs = Owner.objects.filter(clinic=clinic)
     if search_name:
         qs = qs.filter(name__icontains=search_name)
     if search_number:
@@ -152,25 +163,25 @@ def todays_birthdays(request):
     from django.utils import timezone
     
     today = timezone.now().date()
+    clinic = request.clinic
+    if not clinic:
+        return render(request, 'ownerspage/birthdays.html', {'pets_data': [], 'today': today})
     
-    # Get all active pets born on this month and day
     birthday_pets = Pet.objects.filter(
+        owner__clinic=clinic,
         birthdate__month=today.month,
         birthdate__day=today.day
     ).select_related('owner', 'pet_type')
     
-    # Process WhatsApp message for each pet
+    clinic_name = clinic.name
     pets_data = []
     for pet in birthday_pets:
-        # Generate the Egyptian Arabic message
-        msg = f"كل سنة و {pet.name} طيب وبخير! 🎉 حابين نشارككم فرحة عيد ميلاد {pet.name} الـ {pet.age} النهارده من عيادة كوين سنتر 🐾"
+        msg = f"كل سنة و {pet.name} طيب وبخير! 🎉 حابين نشارككم فرحة عيد ميلاد {pet.name} الـ {pet.age} النهارده من عيادة {clinic_name} 🐾"
         
-        # Clean phone number (remove leading zeros, ensure country code)
         phone = pet.owner.phone_number.strip()
         if phone.startswith('0'):
             phone = '2' + phone
         elif not phone.startswith('+') and not phone.startswith('20'):
-            # Fallback if no country code (assumes Egypt)
             phone = '20' + phone
             
         whatsapp_url = f"https://web.whatsapp.com/send?phone={phone}&text={urllib.parse.quote(msg)}"
@@ -189,12 +200,15 @@ def todays_birthdays(request):
 # ── Pet Type ──────────────────────────────────────────────
 @admin_required
 def pet_types(request):
-    types = PetType.objects.all()
+    clinic = request.clinic
+    types = PetType.objects.filter(clinic=clinic) if clinic else PetType.objects.none()
     form = PetTypeForm()
     if request.method == 'POST':
         form = PetTypeForm(request.POST)
         if form.is_valid():
-            form.save()
+            pt = form.save(commit=False)
+            pt.clinic = clinic
+            pt.save()
             messages.success(request, 'Pet type added.')
             return redirect('pet_types')
     return render(request, 'ownerspage/pet_types.html', {'types': types, 'form': form})
@@ -202,7 +216,7 @@ def pet_types(request):
 
 @admin_required
 def delete_pet_type(request, type_id):
-    pet_type = get_object_or_404(PetType, id=type_id)
+    pet_type = get_object_or_404(PetType, id=type_id, clinic=request.clinic)
     if request.method == 'POST':
         try:
             pet_type.delete()
@@ -215,7 +229,7 @@ def delete_pet_type(request, type_id):
 # ── Pets ──────────────────────────────────────────────────
 @doctor_or_admin_required
 def add_pet(request, owner_id):
-    owner = get_object_or_404(Owner, id=owner_id)
+    owner = get_object_or_404(Owner, id=owner_id, clinic=request.clinic)
     if request.method == 'POST':
         form = PetForm(request.POST, request.FILES)
         if form.is_valid():
@@ -232,7 +246,7 @@ def add_pet(request, owner_id):
 
 @doctor_or_admin_required
 def edit_pet(request, pet_id):
-    pet = get_object_or_404(Pet, id=pet_id)
+    pet = get_object_or_404(Pet, id=pet_id, owner__clinic=request.clinic)
     if request.method == 'POST':
         form = PetForm(request.POST, request.FILES, instance=pet)
         if form.is_valid():
@@ -247,7 +261,7 @@ def edit_pet(request, pet_id):
 
 @doctor_or_admin_required
 def delete_pet(request, pet_id):
-    pet = get_object_or_404(Pet, id=pet_id)
+    pet = get_object_or_404(Pet, id=pet_id, owner__clinic=request.clinic)
     owner_id = pet.owner.id
     if request.method == 'POST':
         pet.delete()
@@ -258,5 +272,5 @@ def delete_pet(request, pet_id):
 
 @doctor_or_admin_required
 def pet_detail(request, pet_id):
-    pet = get_object_or_404(Pet, id=pet_id)
+    pet = get_object_or_404(Pet, id=pet_id, owner__clinic=request.clinic)
     return render(request, 'ownerspage/pet_detail.html', {'pet': pet})

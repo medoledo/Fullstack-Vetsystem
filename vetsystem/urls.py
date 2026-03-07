@@ -16,4 +16,5 @@ urlpatterns = [
     path('boarding/', include('boarding.urls')),
     path('tasks/', include('tasks.urls')),
     path('inventory/', include('inventory.urls')),
+    path('invoices/', include('invoices.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

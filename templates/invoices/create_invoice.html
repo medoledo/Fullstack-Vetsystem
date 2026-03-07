@@ -1,0 +1,259 @@
+{% extends 'base.html' %}
+{% load role_tags %}
+{% block title %}Create Invoice{% endblock %}
+{% block page_title %}Create Invoice{% endblock %}
+
+{% block content %}
+<style>
+    .inv-create-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 28px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, .05);
+    }
+
+    .item-row-input {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 8px;
+        flex-wrap: wrap;
+    }
+
+    .item-row-input input,
+    .item-row-input select {
+        border-radius: 8px;
+        border: 1.5px solid #e2e8f0;
+        padding: 8px 12px;
+        font-size: .88rem;
+    }
+
+    .item-row-input .item-name {
+        flex: 2;
+        min-width: 200px;
+    }
+
+    .item-row-input .item-qty {
+        width: 80px;
+    }
+
+    .item-row-input .item-price {
+        width: 110px;
+    }
+
+    .item-row-input .item-total {
+        width: 100px;
+        font-weight: 700;
+        color: #0f172a;
+        display: flex;
+        align-items: center;
+    }
+
+    .item-row-input .remove-item {
+        background: none;
+        border: none;
+        color: #dc3545;
+        cursor: pointer;
+        font-size: 1.1rem;
+        padding: 4px 8px;
+    }
+
+    .item-row-input .remove-item:hover {
+        background: #fef2f2;
+        border-radius: 6px;
+    }
+
+    #invoiceTotal {
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .autocomplete-list {
+        position: absolute;
+        z-index: 100;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        max-height: 220px;
+        overflow-y: auto;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, .1);
+        width: 100%;
+    }
+
+    .autocomplete-list .ac-item {
+        padding: 8px 14px;
+        cursor: pointer;
+        font-size: .88rem;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .autocomplete-list .ac-item:hover {
+        background: #f1f5f9;
+    }
+
+    .autocomplete-list .ac-item .ac-stock {
+        font-size: .75rem;
+        color: #64748b;
+    }
+</style>
+
+<div class="inv-create-card">
+    <h4 class="fw-bold mb-1"><i class="fa-solid fa-file-invoice text-primary me-2"></i>New Invoice</h4>
+    <p class="text-muted small mb-4">Create a new sales invoice. Items from inventory will be automatically deducted.
+    </p>
+
+    <form method="post" id="invoiceForm">
+        {% csrf_token %}
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <label class="form-label text-muted small fw-bold">CUSTOMER NAME</label>
+                <input type="text" name="customer_name" class="form-control" placeholder="Walk-in Customer">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label text-muted small fw-bold">SOURCE</label>
+                <select name="source" class="form-select">
+                    {% for val, label in source_choices %}
+                    <option value="{{ val }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label text-muted small fw-bold">NOTES</label>
+                <input type="text" name="notes" class="form-control" placeholder="Optional notes...">
+            </div>
+        </div>
+
+        <hr>
+        <h6 class="fw-bold mb-3"><i class="fa-solid fa-list me-1 text-primary"></i> Line Items</h6>
+
+        <div id="itemsContainer">
+            <!-- Dynamic rows added via JS -->
+        </div>
+
+        <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="addItemBtn">
+            <i class="fa-solid fa-plus me-1"></i> Add Item
+        </button>
+
+        <hr class="mt-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <span class="text-muted">Total:</span>
+                <span id="invoiceTotal">$0.00</span>
+            </div>
+            <button type="submit" class="btn btn-primary px-5 py-2 fw-medium shadow-sm">
+                <i class="fa-solid fa-check me-1"></i> Create Invoice
+            </button>
+        </div>
+
+        <input type="hidden" name="items_json" id="itemsJsonInput">
+    </form>
+</div>
+
+<script>
+    const inventoryItems = [];
+    let itemRowId = 0;
+
+    // Fetch inventory items
+    fetch("{% url 'api_inventory_items' %}")
+        .then(r => r.json())
+        .then(data => { inventoryItems.push(...data.items); addItemRow(); });
+
+    function addItemRow() {
+        itemRowId++;
+        const container = document.getElementById('itemsContainer');
+        const row = document.createElement('div');
+        row.className = 'item-row-input';
+        row.id = `itemRow${itemRowId}`;
+        row.innerHTML = `
+        <div style="position:relative;flex:2;min-width:200px;">
+            <input type="text" class="form-control item-name" placeholder="Search item..." data-row="${itemRowId}" autocomplete="off">
+            <input type="hidden" class="item-inv-id">
+            <div class="autocomplete-list" style="display:none;"></div>
+        </div>
+        <input type="number" class="form-control item-qty" placeholder="Qty" value="1" min="1">
+        <input type="number" class="form-control item-price" placeholder="Price" step="0.01" min="0" value="0">
+        <div class="item-total">$0.00</div>
+        <button type="button" class="remove-item" title="Remove"><i class="fa-solid fa-xmark"></i></button>
+    `;
+        container.appendChild(row);
+
+        // Setup autocomplete
+        const nameInput = row.querySelector('.item-name');
+        const acList = row.querySelector('.autocomplete-list');
+        const invIdInput = row.querySelector('.item-inv-id');
+        const qtyInput = row.querySelector('.item-qty');
+        const priceInput = row.querySelector('.item-price');
+
+        nameInput.addEventListener('input', () => {
+            const q = nameInput.value.toLowerCase();
+            if (q.length < 1) { acList.style.display = 'none'; return; }
+            const matches = inventoryItems.filter(i => i.name.toLowerCase().includes(q)).slice(0, 8);
+            if (matches.length === 0) { acList.style.display = 'none'; return; }
+            acList.innerHTML = matches.map(i => `
+            <div class="ac-item" data-id="${i.id}" data-name="${i.name}" data-price="${i.price}">
+                <span>${i.name} <span class="badge bg-light text-dark ms-1" style="font-size:.7rem">${i.category}</span></span>
+                <span class="ac-stock">${i.stock} ${i.unit}</span>
+            </div>
+        `).join('');
+            acList.style.display = 'block';
+
+            acList.querySelectorAll('.ac-item').forEach(el => {
+                el.addEventListener('click', () => {
+                    nameInput.value = el.dataset.name;
+                    invIdInput.value = el.dataset.id;
+                    priceInput.value = el.dataset.price;
+                    acList.style.display = 'none';
+                    recalculate();
+                });
+            });
+        });
+
+        nameInput.addEventListener('blur', () => setTimeout(() => acList.style.display = 'none', 200));
+
+        // Recalculate on change
+        qtyInput.addEventListener('input', recalculate);
+        priceInput.addEventListener('input', recalculate);
+
+        // Remove button
+        row.querySelector('.remove-item').addEventListener('click', () => {
+            row.remove();
+            recalculate();
+        });
+    }
+
+    function recalculate() {
+        let total = 0;
+        document.querySelectorAll('.item-row-input').forEach(row => {
+            const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+            const price = parseFloat(row.querySelector('.item-price').value) || 0;
+            const lineTotal = qty * price;
+            row.querySelector('.item-total').textContent = `$${lineTotal.toFixed(2)}`;
+            total += lineTotal;
+        });
+        document.getElementById('invoiceTotal').textContent = `$${total.toFixed(2)}`;
+    }
+
+    document.getElementById('addItemBtn').addEventListener('click', addItemRow);
+
+    document.getElementById('invoiceForm').addEventListener('submit', (e) => {
+        const items = [];
+        document.querySelectorAll('.item-row-input').forEach(row => {
+            const name = row.querySelector('.item-name').value.trim();
+            const qty = parseInt(row.querySelector('.item-qty').value) || 0;
+            const price = parseFloat(row.querySelector('.item-price').value) || 0;
+            const invId = row.querySelector('.item-inv-id').value || null;
+            if (name && qty > 0) {
+                items.push({ name, quantity: qty, unit_price: price, inventory_item_id: invId });
+            }
+        });
+        document.getElementById('itemsJsonInput').value = JSON.stringify(items);
+        if (items.length === 0) {
+            e.preventDefault();
+            alert('Please add at least one item.');
+        }
+    });
+</script>
+{% endblock %}

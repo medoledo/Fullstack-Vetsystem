@@ -17,12 +17,14 @@ DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
 
 INSTALLED_APPS = [
+    'clinics.apps.ClinicsConfig',
     'owners.apps.OwnersConfig',
     'vetlogin.apps.VetloginConfig',
     'visits.apps.VisitsConfig',
     'boarding.apps.BoardingConfig',
     'tasks.apps.TasksConfig',
     'inventory.apps.InventoryConfig',
+    'invoices.apps.InvoicesConfig',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -37,6 +39,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'vetlogin.middleware.ClinicMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]

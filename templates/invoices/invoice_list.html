@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% load role_tags %}
+{% block title %}Invoices{% endblock %}
+{% block page_title %}Invoices{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="h4 mb-1"><i class="fa-solid fa-file-invoice me-2 text-primary"></i>Invoices</h2>
+        <p class="text-muted mb-0">View and manage all invoices</p>
+    </div>
+    <a href="{% url 'create_invoice' %}" class="btn btn-primary"><i class="fa-solid fa-plus me-2"></i> New Invoice</a>
+</div>
+
+<form method="get" class="d-flex gap-2 mb-4 flex-wrap">
+    <div class="flex-grow-1" style="max-width:300px;position:relative;">
+        <i class="fa-solid fa-magnifying-glass"
+            style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:.85rem;"></i>
+        <input type="text" name="q" class="form-control form-control-sm" placeholder="Search ref# or customer..."
+            value="{{ search }}" style="padding-left:36px;border-radius:8px;">
+    </div>
+    <select name="source" class="form-select form-select-sm" style="max-width:180px;border-radius:8px;"
+        onchange="this.form.submit()">
+        <option value="">All Sources</option>
+        {% for val, label in source_choices %}
+        <option value="{{ val }}" {% if source_filter == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+    </select>
+    <button class="btn btn-primary btn-sm px-3"><i class="fa-solid fa-search me-1"></i> Search</button>
+</form>
+
+<div class="card shadow-sm border-0">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="bg-light">
+                <tr>
+                    <th>Reference</th>
+                    <th>Customer</th>
+                    <th>Source</th>
+                    <th>Created By</th>
+                    <th class="text-end">Amount</th>
+                    <th>Date</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inv in page %}
+                <tr>
+                    <td><a href="{% url 'invoice_detail' inv.id %}" class="fw-bold text-decoration-none">INV-{{
+                            inv.reference }}</a></td>
+                    <td>{{ inv.customer_name }}</td>
+                    <td><span class="badge bg-primary bg-opacity-10 text-primary rounded-pill px-2"
+                            style="font-size:.75rem">{{ inv.get_source_display }}</span></td>
+                    <td class="text-muted">{{ inv.creator_name }}</td>
+                    <td class="text-end fw-bold">${{ inv.total_amount }}</td>
+                    <td class="text-muted" style="font-size:.85rem">{{ inv.created_at|date:"d M Y, h:i A" }}</td>
+                    <td class="text-end">
+                        <a href="{% url 'invoice_detail' inv.id %}" class="btn btn-sm btn-outline-primary"><i
+                                class="fa-solid fa-eye"></i></a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center py-5 text-muted"><i
+                            class="fa-solid fa-file-invoice fa-2x mb-2 opacity-25 d-block"></i>No invoices yet</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if page.paginator.num_pages > 1 %}
+    <div class="card-footer bg-white py-3 border-0">
+        <nav>
+            <ul class="pagination pagination-sm justify-content-center mb-0">
+                {% if page.has_previous %}<li class="page-item"><a class="page-link"
+                        href="?q={{ search }}&source={{ source_filter }}&page={{ page.previous_page_number }}">Prev</a>
+                </li>{% endif %}
+                {% for p in page.paginator.page_range %}
+                <li class="page-item {% if p == page.number %}active{% endif %}"><a class="page-link"
+                        href="?q={{ search }}&source={{ source_filter }}&page={{ p }}">{{ p }}</a></li>
+                {% endfor %}
+                {% if page.has_next %}<li class="page-item"><a class="page-link"
+                        href="?q={{ search }}&source={{ source_filter }}&page={{ page.next_page_number }}">Next</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

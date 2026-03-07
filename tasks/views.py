@@ -9,13 +9,17 @@ from datetime import datetime, date
 
 @doctor_or_admin_required
 def tasks_dashboard(request):
-    active_tasks = Task.objects.filter(is_done=False).order_by('deadline', '-date_created')
+    clinic = request.clinic
+    if not clinic:
+        return render(request, 'taskspage/tasks.html', {})
+
+    active_tasks = Task.objects.filter(clinic=clinic, is_done=False).order_by('deadline', '-date_created')
 
     # --- Date filter for completed tasks ---
     date_from_str = request.GET.get('date_from', '')
     date_to_str   = request.GET.get('date_to', '')
 
-    completed_qs = Task.objects.filter(is_done=True).order_by('-date_created')
+    completed_qs = Task.objects.filter(clinic=clinic, is_done=True).order_by('-date_created')
 
     if date_from_str:
         try:
@@ -68,6 +72,7 @@ def add_task(request):
                 description=description,
                 created_by=request.user,
                 deadline=deadline,
+                clinic=request.clinic,
             )
             messages.success(request, f"Task '{title}' created successfully.")
         except Exception as e:
@@ -78,7 +83,7 @@ def add_task(request):
 
 @doctor_or_admin_required
 def edit_task(request, task_id):
-    task = get_object_or_404(Task, id=task_id)
+    task = get_object_or_404(Task, id=task_id, clinic=request.clinic)
 
     # Guard: only the creator can edit, and only if not yet completed
     if task.created_by != request.user:
@@ -118,9 +123,8 @@ def edit_task(request, task_id):
 @doctor_or_admin_required
 def delete_task(request, task_id):
     if request.method == 'POST':
-        task = get_object_or_404(Task, id=task_id)
+        task = get_object_or_404(Task, id=task_id, clinic=request.clinic)
 
-        # Guard: only the creator can delete, and only if not yet completed
         if task.created_by != request.user:
             messages.error(request, "You can only delete tasks that you created.")
             return redirect('tasks_dashboard')
@@ -140,7 +144,7 @@ def delete_task(request, task_id):
 def complete_task(request, task_id):
     """Mark a task as completed. One-way: cannot be undone via UI."""
     if request.method == 'POST':
-        task = get_object_or_404(Task, id=task_id)
+        task = get_object_or_404(Task, id=task_id, clinic=request.clinic)
 
         if task.is_done:
             messages.warning(request, f"Task '{task.title}' is already completed.")
