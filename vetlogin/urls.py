@@ -13,4 +13,11 @@ urlpatterns = [
     path('clinics/add/', views.add_clinic, name='add_clinic'),
     path('clinics/<int:clinic_id>/edit/', views.edit_clinic, name='edit_clinic'),
     path('clinics/<int:clinic_id>/delete/', views.delete_clinic, name='delete_clinic'),
+    # Siteowner subscription management
+    path('subscriptions/', views.subscription_history, name='subscription_history'),
+    path('subscriptions/plans/add/', views.add_subscription_plan, name='add_subscription_plan'),
+    path('subscriptions/plans/<int:plan_id>/edit/', views.edit_subscription_plan, name='edit_subscription_plan'),
+    path('subscriptions/plans/<int:plan_id>/delete/', views.delete_subscription_plan, name='delete_subscription_plan'),
+    path('subscriptions/assign/', views.assign_subscription, name='assign_subscription'),
+    path('subscriptions/<int:clinic_id>/revoke/', views.revoke_subscription, name='revoke_subscription'),
 ]

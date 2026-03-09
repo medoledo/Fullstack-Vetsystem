@@ -1,0 +1,619 @@
+{% extends 'base.html' %}
+{% load role_tags %}
+{% block title %}Subscription Management{% endblock %}
+{% block page_title %}Subscription Management{% endblock %}
+
+{% block content %}
+<style>
+    /* ── Stat Cards ── */
+    .sub-stat-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 16px;
+        margin-bottom: 28px;
+    }
+
+    .sub-stat-card {
+        background: #fff;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        padding: 20px 22px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .sub-stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        border-radius: 14px 14px 0 0;
+    }
+
+    .sub-stat-card.green::before {
+        background: linear-gradient(90deg, #10b981, #34d399);
+    }
+
+    .sub-stat-card.red::before {
+        background: linear-gradient(90deg, #ef4444, #f87171);
+    }
+
+    .sub-stat-card.amber::before {
+        background: linear-gradient(90deg, #f59e0b, #fbbf24);
+    }
+
+    .sub-stat-card.blue::before {
+        background: linear-gradient(90deg, #6366f1, #818cf8);
+    }
+
+    .sub-stat-card .sub-num {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #0f172a;
+        line-height: 1;
+    }
+
+    .sub-stat-card .sub-lbl {
+        font-size: .75rem;
+        color: #64748b;
+        font-weight: 500;
+        margin-top: 4px;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+    }
+
+    .sub-stat-card .sub-icon {
+        position: absolute;
+        right: 18px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 2rem;
+        opacity: .08;
+        color: #0f172a;
+    }
+
+    /* ── Section headers ── */
+    .section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .section-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #0f172a;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .section-title i {
+        font-size: .9rem;
+        color: #6366f1;
+    }
+
+    /* ── Subscription table ── */
+    .sub-table-wrap {
+        background: #fff;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
+        overflow: hidden;
+    }
+
+    /* ── Progress bar ── */
+    .days-bar {
+        width: 80px;
+        height: 6px;
+        background: #f1f5f9;
+        border-radius: 99px;
+        overflow: hidden;
+        display: inline-block;
+        vertical-align: middle;
+        margin-right: 6px;
+    }
+
+    .days-bar-fill {
+        height: 100%;
+        border-radius: 99px;
+        transition: width .3s;
+    }
+
+    .days-bar-fill.ok {
+        background: #10b981;
+    }
+
+    .days-bar-fill.warn {
+        background: #f59e0b;
+    }
+
+    .days-bar-fill.danger {
+        background: #ef4444;
+    }
+
+    /* ── Plans grid ── */
+    .plans-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+        gap: 16px;
+    }
+
+    .plan-card {
+        background: #fff;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        padding: 20px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
+        position: relative;
+        transition: transform .2s, box-shadow .2s;
+    }
+
+    .plan-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, .08);
+    }
+
+    .plan-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #6366f1, #818cf8);
+        border-radius: 14px 14px 0 0;
+    }
+
+    .plan-name {
+        font-weight: 700;
+        font-size: 1rem;
+        color: #0f172a;
+    }
+
+    .plan-price {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #6366f1;
+        margin: 6px 0 2px;
+    }
+
+    .plan-days {
+        font-size: .78rem;
+        color: #64748b;
+    }
+
+    .plan-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 14px;
+    }
+
+    /* ── Alert ── */
+    .expiring-alert {
+        background: linear-gradient(135deg, #fff7ed, #fffbeb);
+        border: 1px solid #fed7aa;
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 24px;
+    }
+
+    .expiring-alert .alert-title {
+        font-weight: 700;
+        color: #92400e;
+        font-size: .9rem;
+        margin-bottom: 10px;
+    }
+
+    .expiring-alert .clinic-chip {
+        display: inline-block;
+        background: #fff;
+        border: 1px solid #fdba74;
+        color: #c2410c;
+        border-radius: 99px;
+        font-size: .75rem;
+        font-weight: 600;
+        padding: 3px 10px;
+        margin: 3px 4px 3px 0;
+    }
+
+    @media (max-width: 767.98px) {
+        .sub-stat-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .plans-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<!-- Page Header -->
+<div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="h4 mb-1">Subscriptions</h2>
+        <p class="text-muted mb-0">Manage subscription plans and clinic assignments</p>
+    </div>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPlanModal">
+        <i class="fa-solid fa-plus me-2"></i>New Plan
+    </button>
+</div>
+
+<!-- Stat Cards -->
+<div class="sub-stat-grid">
+    <div class="sub-stat-card green">
+        <div class="sub-num">{{ active_count }}</div>
+        <div class="sub-lbl">Active Subscriptions</div>
+        <i class="fa-solid fa-circle-check sub-icon"></i>
+    </div>
+    <div class="sub-stat-card red">
+        <div class="sub-num">{{ expired_count }}</div>
+        <div class="sub-lbl">Expired</div>
+        <i class="fa-solid fa-circle-xmark sub-icon"></i>
+    </div>
+    <div class="sub-stat-card amber">
+        <div class="sub-num">{{ expiring_soon|length }}</div>
+        <div class="sub-lbl">Expiring Within 14 Days</div>
+        <i class="fa-solid fa-triangle-exclamation sub-icon"></i>
+    </div>
+    <div class="sub-stat-card blue">
+        <div class="sub-num">{{ clinics_without_sub|length }}</div>
+        <div class="sub-lbl">Unsubscribed Clinics</div>
+        <i class="fa-solid fa-building sub-icon"></i>
+    </div>
+</div>
+
+<!-- Expiring Soon Alert -->
+{% if expiring_soon %}
+<div class="expiring-alert">
+    <div class="alert-title"><i class="fa-solid fa-triangle-exclamation me-2"></i>Expiring Within 14 Days</div>
+    {% for s in expiring_soon %}
+    <span class="clinic-chip">{{ s.clinic.name }} — {{ s.days_remaining }} day{{ s.days_remaining|pluralize }}
+        left</span>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- ── Plans Section ── -->
+<div class="section-header">
+    <div class="section-title"><i class="fa-solid fa-tags"></i> Subscription Plans</div>
+</div>
+<div class="plans-grid mb-4">
+    {% for plan in plans %}
+    <div class="plan-card" id="plan-{{ plan.id }}">
+        <div class="plan-name">{{ plan.name }}</div>
+        <div class="plan-price">{{ plan.price }} <small
+                style="font-size:.65rem;font-weight:500;color:#94a3b8">EGP</small></div>
+        <div class="plan-days"><i class="fa-regular fa-calendar me-1"></i>{{ plan.days }} days</div>
+        <div class="plan-actions">
+            <button class="btn btn-sm btn-outline-warning edit-plan-btn flex-fill" data-bs-toggle="modal"
+                data-bs-target="#editPlanModal" data-id="{{ plan.id }}" data-name="{{ plan.name }}"
+                data-price="{{ plan.price }}" data-days="{{ plan.days }}">
+                <i class="fa-solid fa-pen-to-square me-1"></i> Edit
+            </button>
+            <form method="post" action="{% url 'delete_subscription_plan' plan.id %}"
+                onsubmit="return confirm('Delete plan {{ plan.name }}? This only works if no clinic is using it.');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+    {% empty %}
+    <div class="text-muted small py-3">No plans yet. Create one using the button above.</div>
+    {% endfor %}
+</div>
+
+<!-- ── Assigned Subscriptions ── -->
+<div class="section-header">
+    <div class="section-title"><i class="fa-solid fa-list-check"></i> Clinic Subscriptions</div>
+    {% if clinics_without_sub %}
+    <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#assignModal">
+        <i class="fa-solid fa-plus me-1"></i>Assign Subscription
+    </button>
+    {% endif %}
+</div>
+<div class="sub-table-wrap mb-4">
+    <table class="table table-hover mb-0">
+        <thead>
+            <tr>
+                <th>Clinic</th>
+                <th>Plan</th>
+                <th>Start</th>
+                <th>End</th>
+                <th>Days Left</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in subscriptions %}
+            {% with pct=s.days_remaining %}
+            <tr>
+                <td class="fw-semibold">{{ s.clinic.name }}</td>
+                <td>
+                    <span class="badge bg-light text-dark border" style="font-size:.75rem">{{ s.plan.name }}</span>
+                </td>
+                <td>{{ s.start_date|date:"d M Y" }}</td>
+                <td>{{ s.end_date|date:"d M Y" }}</td>
+                <td>
+                    {% if s.is_active %}
+                    {% if s.days_remaining <= 7 %} <span class="days-bar"><span class="days-bar-fill danger"
+                            style="width:{{ s.days_remaining }}%"></span></span>
+                        <span class="text-danger fw-semibold">{{ s.days_remaining }}d</span>
+                        {% elif s.days_remaining <= 14 %} <span class="days-bar"><span class="days-bar-fill warn"
+                                style="width:{{ s.days_remaining }}%"></span></span>
+                            <span class="text-warning fw-semibold">{{ s.days_remaining }}d</span>
+                            {% else %}
+                            <span class="days-bar"><span class="days-bar-fill ok" style="width:100%"></span></span>
+                            <span class="text-success">{{ s.days_remaining }}d</span>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-danger">Expired</span>
+                            {% endif %}
+                </td>
+                <td>
+                    {% if s.is_active %}
+                    <span class="badge bg-success rounded-pill px-2" style="font-size:.7rem">Active</span>
+                    {% else %}
+                    <span class="badge bg-danger rounded-pill px-2" style="font-size:.7rem">Expired</span>
+                    {% endif %}
+                </td>
+                <td class="text-end">
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-link text-muted p-0" type="button" data-bs-toggle="dropdown">
+                            <i class="fa-solid fa-ellipsis-vertical fs-5"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                            <li>
+                                <button type="button" class="dropdown-item reassign-btn" data-bs-toggle="modal"
+                                    data-bs-target="#assignModal" data-clinic-id="{{ s.clinic.id }}"
+                                    data-clinic-name="{{ s.clinic.name }}" data-plan-id="{{ s.plan.id }}"
+                                    data-start="{{ s.start_date|date:'Y-m-d' }}"
+                                    data-end="{{ s.end_date|date:'Y-m-d' }}">
+                                    <i class="fa-solid fa-rotate me-2 text-warning"></i>Renew / Edit
+                                </button>
+                            </li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li>
+                                <form method="post" action="{% url 'revoke_subscription' s.clinic.id %}"
+                                    onsubmit="return confirm('Remove subscription from {{ s.clinic.name }}?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="dropdown-item text-danger">
+                                        <i class="fa-solid fa-ban me-2"></i>Revoke
+                                    </button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                </td>
+            </tr>
+            {% endwith %}
+            {% empty %}
+            <tr>
+                <td colspan="7" class="text-center py-5 text-muted">
+                    <i class="fa-solid fa-file-contract fs-1 mb-3 d-block opacity-25"></i>
+                    No subscriptions assigned yet.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- ── Clinics Without Subscriptions ── -->
+{% if clinics_without_sub %}
+<div class="section-header">
+    <div class="section-title"><i class="fa-solid fa-building-circle-exclamation text-danger"></i> Unsubscribed Clinics
+    </div>
+</div>
+<div class="sub-table-wrap">
+    <table class="table table-hover mb-0">
+        <thead>
+            <tr>
+                <th>Clinic</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in clinics_without_sub %}
+            <tr>
+                <td class="fw-semibold">{{ c.name }}</td>
+                <td><span class="badge bg-secondary rounded-pill px-2" style="font-size:.7rem">No Subscription</span>
+                </td>
+                <td class="text-end">
+                    <button class="btn btn-sm btn-primary assign-now-btn" data-bs-toggle="modal"
+                        data-bs-target="#assignModal" data-clinic-id="{{ c.id }}" data-clinic-name="{{ c.name }}">
+                        <i class="fa-solid fa-plus me-1"></i>Assign
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+
+<!-- ══════════════ MODALS ══════════════ -->
+
+<!-- Add Plan Modal -->
+<div class="modal fade" id="addPlanModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title fw-bold">New Subscription Plan</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form method="post" action="{% url 'add_subscription_plan' %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">PLAN NAME *</label>
+                        <input type="text" name="name" class="form-control" placeholder="e.g. Monthly" required>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label text-muted small fw-bold">PRICE (EGP) *</label>
+                            <input type="number" name="price" class="form-control" step="0.01" placeholder="500.00"
+                                required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-muted small fw-bold">DURATION (DAYS) *</label>
+                            <input type="number" name="days" class="form-control" placeholder="30" required>
+                        </div>
+                    </div>
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary py-2 fw-medium">
+                            <i class="fa-solid fa-plus me-1"></i>Create Plan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Plan Modal -->
+<div class="modal fade" id="editPlanModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title fw-bold">Edit Plan</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form method="post" id="editPlanForm" action="">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">PLAN NAME *</label>
+                        <input type="text" name="name" id="editPlanName" class="form-control" required>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label text-muted small fw-bold">PRICE (EGP) *</label>
+                            <input type="number" name="price" id="editPlanPrice" class="form-control" step="0.01"
+                                required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-muted small fw-bold">DURATION (DAYS) *</label>
+                            <input type="number" name="days" id="editPlanDays" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-warning py-2 fw-medium">
+                            <i class="fa-solid fa-floppy-disk me-1"></i>Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Assign / Renew Subscription Modal -->
+<div class="modal fade" id="assignModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title fw-bold" id="assignModalTitle">Assign Subscription</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form method="post" action="{% url 'assign_subscription' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="clinic_id" id="assignClinicId">
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">CLINIC</label>
+                        <input type="text" id="assignClinicName" class="form-control" readonly
+                            style="background:#f8fafc">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">SUBSCRIPTION PLAN *</label>
+                        <select name="plan_id" id="assignPlanId" class="form-select" required>
+                            <option value="">— Select a plan —</option>
+                            {% for plan in plans %}
+                            <option value="{{ plan.id }}">{{ plan.name }} – {{ plan.price }} EGP / {{ plan.days }} days
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small fw-bold">START DATE *</label>
+                            <input type="date" name="start_date" id="assignStartDate" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small fw-bold">END DATE <small
+                                    class="text-muted fw-normal">(optional – auto-calculated)</small></label>
+                            <input type="date" name="end_date" id="assignEndDate" class="form-control">
+                        </div>
+                    </div>
+                    <div class="d-grid mt-4">
+                        <button type="submit" class="btn btn-primary py-2 fw-medium">
+                            <i class="fa-solid fa-check me-1"></i>Save Subscription
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const today = new Date().toISOString().split('T')[0];
+
+        // Edit plan
+        document.querySelectorAll('.edit-plan-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.dataset.id;
+                document.getElementById('editPlanForm').action = "{% url 'edit_subscription_plan' 0 %}".replace('0', id);
+                document.getElementById('editPlanName').value = btn.dataset.name;
+                document.getElementById('editPlanPrice').value = btn.dataset.price;
+                document.getElementById('editPlanDays').value = btn.dataset.days;
+            });
+        });
+
+        // Assign modal populate
+        function openAssign(clinicId, clinicName, planId, startDate, endDate) {
+            document.getElementById('assignClinicId').value = clinicId;
+            document.getElementById('assignClinicName').value = clinicName;
+            document.getElementById('assignModalTitle').textContent = clinicName ? `Assign — ${clinicName}` : 'Assign Subscription';
+            const planSelect = document.getElementById('assignPlanId');
+            if (planId) planSelect.value = planId;
+            document.getElementById('assignStartDate').value = startDate || today;
+            document.getElementById('assignEndDate').value = endDate || '';
+        }
+
+        document.querySelectorAll('.reassign-btn').forEach(btn => {
+            btn.addEventListener('click', () => openAssign(
+                btn.dataset.clinicId, btn.dataset.clinicName,
+                btn.dataset.planId, btn.dataset.start, btn.dataset.end
+            ));
+        });
+
+        document.querySelectorAll('.assign-now-btn').forEach(btn => {
+            btn.addEventListener('click', () => openAssign(
+                btn.dataset.clinicId, btn.dataset.clinicName, '', today, ''
+            ));
+        });
+
+        // Button in header (no clinic pre-selected)
+        const mainAssignBtn = document.querySelector('[data-bs-target="#assignModal"]:not(.reassign-btn):not(.assign-now-btn)');
+        if (mainAssignBtn) {
+            mainAssignBtn.addEventListener('click', () => openAssign('', '', '', today, ''));
+        }
+    });
+</script>
+{% endblock %}

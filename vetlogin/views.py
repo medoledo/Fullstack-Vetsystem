@@ -11,7 +11,7 @@ from .decorators import (
     is_siteowner, is_clinic_owner, is_doctor, is_petshop
 )
 from .models import SiteOwnerProfile, ClinicOwnerProfile, DoctorProfile, PetshopProfile
-from clinics.models import Clinic
+from clinics.models import Clinic, SubscriptionPlan, ClinicSubscription
 
 
 def vetlogin(request):
@@ -368,6 +368,11 @@ def manage_clinics(request):
             DoctorProfile.objects.filter(clinic=c).count() +
             PetshopProfile.objects.filter(clinic=c).count()
         )
+        # Attach subscription info
+        try:
+            c.sub = c.subscription
+        except ClinicSubscription.DoesNotExist:
+            c.sub = None
     return render(request, 'vetlogin/manage_clinics.html', {'clinics': clinics})
 
 
@@ -442,3 +447,118 @@ def delete_clinic(request, clinic_id):
             clinic.delete()
             messages.success(request, f'Clinic "{name}" deleted successfully.')
     return redirect('manage_clinics')
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Siteowner — Subscription Management
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+@siteowner_required
+def subscription_history(request):
+    from django.utils import timezone
+    today = timezone.localdate()
+
+    plans = SubscriptionPlan.objects.all().order_by('days')
+    subscriptions = ClinicSubscription.objects.select_related('clinic', 'plan').order_by('end_date')
+    clinics_without_sub = Clinic.objects.exclude(
+        id__in=subscriptions.values_list('clinic_id', flat=True)
+    ).order_by('name')
+
+    # Stats
+    active_count = sum(1 for s in subscriptions if s.is_active)
+    expired_count = len(subscriptions) - active_count
+    expiring_soon = [s for s in subscriptions if s.is_active and s.days_remaining <= 14]
+
+    context = {
+        'plans': plans,
+        'subscriptions': subscriptions,
+        'clinics_without_sub': clinics_without_sub,
+        'active_count': active_count,
+        'expired_count': expired_count,
+        'expiring_soon': expiring_soon,
+        'today': today,
+    }
+    return render(request, 'vetlogin/subscription_history.html', context)
+
+
+@siteowner_required
+def add_subscription_plan(request):
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        price = request.POST.get('price', '').strip()
+        days = request.POST.get('days', '').strip()
+        if name and price and days:
+            try:
+                SubscriptionPlan.objects.create(name=name, price=price, days=int(days))
+                messages.success(request, f'Plan "{name}" created.')
+            except Exception as e:
+                messages.error(request, str(e))
+        else:
+            messages.error(request, 'All fields are required.')
+    return redirect('subscription_history')
+
+
+@siteowner_required
+def edit_subscription_plan(request, plan_id):
+    plan = get_object_or_404(SubscriptionPlan, id=plan_id)
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        price = request.POST.get('price', '').strip()
+        days = request.POST.get('days', '').strip()
+        if name and price and days:
+            try:
+                plan.name = name
+                plan.price = price
+                plan.days = int(days)
+                plan.save()
+                messages.success(request, f'Plan "{name}" updated.')
+            except Exception as e:
+                messages.error(request, str(e))
+        else:
+            messages.error(request, 'All fields are required.')
+    return redirect('subscription_history')
+
+
+@siteowner_required
+def delete_subscription_plan(request, plan_id):
+    if request.method == 'POST':
+        plan = get_object_or_404(SubscriptionPlan, id=plan_id)
+        if plan.subscriptions.exists():
+            messages.error(request, f'Cannot delete "{plan.name}" — it is assigned to one or more clinics.')
+        else:
+            plan.delete()
+            messages.success(request, f'Plan "{plan.name}" deleted.')
+    return redirect('subscription_history')
+
+
+@siteowner_required
+def assign_subscription(request):
+    """Assign or update a clinic's subscription."""
+    if request.method == 'POST':
+        clinic_id = request.POST.get('clinic_id')
+        plan_id = request.POST.get('plan_id')
+        start_date = request.POST.get('start_date')
+        end_date = request.POST.get('end_date') or None
+
+        clinic = get_object_or_404(Clinic, id=clinic_id)
+        plan = get_object_or_404(SubscriptionPlan, id=plan_id)
+
+        sub, created = ClinicSubscription.objects.get_or_create(clinic=clinic)
+        sub.plan = plan
+        sub.start_date = start_date
+        sub.end_date = end_date  # will auto-calc if None via save()
+        sub.save()
+
+        action = 'assigned' if created else 'updated'
+        messages.success(request, f'Subscription {action} for "{clinic.name}".')
+    return redirect('subscription_history')
+
+
+@siteowner_required
+def revoke_subscription(request, clinic_id):
+    if request.method == 'POST':
+        sub = get_object_or_404(ClinicSubscription, clinic_id=clinic_id)
+        clinic_name = sub.clinic.name
+        sub.delete()
+        messages.success(request, f'Subscription removed from "{clinic_name}".')
+    return redirect('subscription_history')
